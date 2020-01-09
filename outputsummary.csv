@@ -1,0 +1,69 @@
+DateTime,FileName,BestGuessAcc,BessGuessLoss,BestGuess,EPOCHS,BatchSize,ModelBestAcc,ModelBestLoss,ModelBestValAcc,ModelBestValLoss,Description
+2020-01-04 16:39:29.138432,C:\Users\369842\PycharmProjects\TensorFlowPlayPen\MyFunctions.py,0.052965,8.148722,1,20,1,0.211610,8.208824,0.724759,8.986036,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-04 23:17:03.855887,MyFunctions.py,0.052965,8.148722,1,200,1,0.206786,8.205930,0.053376,8.983340,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 02:01:36.415199,MyFunctions.py,0.052965,8.148722,1,200,3,0.191188,7.326857,0.185209,9.068573,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 03:46:54.085402,MyFunctions.py,0.052965,8.148722,1,200,5,0.467599,6.707169,0.728617,9.305492,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 10:11:14.355086,MyFunctions.py,0.052965,8.148722,1,200,7,0.765396,6.294300,0.755627,9.411531,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 11:12:37.817252,MyFunctions.py,0.052965,8.148722,1,200,9,0.759929,5.857028,0.735048,9.573971,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 12:05:43.695750,MyFunctions.py,0.052965,8.148722,1,200,11,0.772311,5.099044,0.772990,9.761183,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 12:51:01.265997,MyFunctions.py,0.052965,8.148722,1,200,13,0.767648,5.059293,0.695820,10.137427,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 13:30:31.909284,MyFunctions.py,0.052965,8.148722,1,200,15,0.750121,5.065744,0.708682,11.236252,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 14:07:48.464315,MyFunctions.py,0.052965,8.148722,1,200,17,0.758964,4.617618,0.694534,10.782385,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 14:38:06.863116,MyFunctions.py,0.052965,8.148722,1,200,19,0.756231,4.572050,0.706752,11.183734,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 14:53:37.733961,MyFunctions.py,0.052965,8.148722,1,200,21,0.757196,4.452597,0.703537,11.398112,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 15:12:55.545587,MyFunctions.py,0.052965,8.148722,1,200,23,0.819264,3.968238,0.715756,11.950340,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 15:36:35.670859,MyFunctions.py,0.052965,8.148722,1,200,25,0.820711,3.807802,0.700965,11.810151,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 15:49:59.270364,MyFunctions.py,0.052965,8.148722,1,200,27,0.825374,3.876053,0.702251,12.255166,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 16:01:40.208900,MyFunctions.py,0.052965,8.148722,1,200,29,0.817495,3.757457,0.688746,12.557518,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-05 16:20:37.855289,MyFunctions.py,0.052965,8.148722,1,200,31,0.831323,3.585577,0.719614,12.466378,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:11:36.914247,MyFunctions.py,0.052965,8.148722,1,20,1,0.243287,8.209749,0.124116,8.987363,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:22:04.003014,MyFunctions.py,0.052965,8.148722,1,20,3,0.160637,8.063959,0.090032,9.130435,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:28:22.970902,MyFunctions.py,0.052965,8.148722,1,20,5,0.321756,8.307907,0.823151,9.347747,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:33:00.830559,MyFunctions.py,0.052965,8.148722,1,20,7,0.234604,8.317805,0.430868,9.537241,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:37:36.187928,MyFunctions.py,0.052965,8.148722,1,20,9,0.391864,8.299737,0.550482,9.519094,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:43:12.171252,MyFunctions.py,0.052965,8.148722,1,20,11,0.412928,8.518045,0.467524,9.782096,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:48:03.781156,MyFunctions.py,0.052965,8.148722,1,20,13,0.431741,8.865919,0.495177,10.283891,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:52:19.696904,MyFunctions.py,0.052965,8.148722,1,20,15,0.453610,9.308675,0.551768,10.799623,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:56:08.762529,MyFunctions.py,0.052965,8.148722,1,20,17,0.520502,9.239012,0.632154,10.756240,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 12:59:33.074771,MyFunctions.py,0.052965,8.148722,1,20,19,0.556360,9.275976,0.547267,11.364579,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:02:44.041810,MyFunctions.py,0.052965,8.148722,1,20,21,0.635794,8.680051,0.663666,11.759739,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:05:41.443405,MyFunctions.py,0.052965,8.148722,1,20,23,0.631291,8.629315,0.650804,11.745957,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:08:26.491197,MyFunctions.py,0.052965,8.148722,1,20,25,0.654928,8.419489,0.699678,12.179867,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:11:02.315875,MyFunctions.py,0.052965,8.148722,1,20,27,0.647210,8.528112,0.654019,12.849948,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:13:27.321628,MyFunctions.py,0.052965,8.148722,1,20,29,0.648336,8.698892,0.717685,12.959051,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 13:15:45.243510,MyFunctions.py,0.052965,8.148722,1,20,31,0.680334,7.541513,0.610932,12.889808,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 14:52:07.318483,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,1,0.236212,8.210762,0.053376,8.988449,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:11:04.826651,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,3,0.166104,8.141779,0.114469,9.015922,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:21:30.764027,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,5,0.160154,8.217477,0.078457,9.236214,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:29:03.758625,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,7,0.208233,8.451686,0.565916,9.587255,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:35:07.257316,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,9,0.390577,8.488902,0.461736,9.823985,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:40:24.854631,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,11,0.395401,8.960359,0.612862,10.367384,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:44:58.940997,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,13,0.446696,8.640883,0.547910,10.047412,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:50:22.086559,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,15,0.482875,9.020808,0.502894,10.527713,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:54:11.575596,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,17,0.512783,9.243352,0.598071,10.786621,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 15:57:55.506657,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,19,0.625020,8.756216,0.654662,12.010052,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:01:16.302038,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,21,0.598328,9.390506,0.672669,11.641928,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:04:42.231615,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,23,0.628558,9.141612,0.672026,11.768876,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:07:40.238498,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,25,0.652034,8.492566,0.638585,12.285978,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:10:32.879001,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,27,0.642869,8.152327,0.682958,12.894017,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:13:13.679764,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,29,0.664737,7.862925,0.678457,12.470148,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 16:15:50.524759,C:/Users/369842/PycharmProjects/TensorFlowPlayPen/PlayArea2.py,0.052965,8.148722,1,20,31,0.660717,7.680819,0.681672,12.993416,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-06 18:55:43.438769,PlayArea2.py,0.052965,8.148722,1,20,1,0.230584,8.210330,0.053376,8.990467,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-08 01:56:28.960970,PlayArea2.py,0.052965,8.148722,1,200,1,0.218845,8.207028,0.053376,8.983162,0,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-08 11:32:55.284200,PlayArea2.py,0.052965,8.148722,1,200,3,0.192635,7.044838,0.088746,9.181290,0,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-08 13:58:27.958276,PlayArea2.py,0.052965,8.148722,1,200,5,0.155813,6.711309,0.073312,9.176970,0,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-08 21:36:13.857215,PlayArea2.py,0.052965,8.148722,1,200,1,0.054350,8.206147,0.053376,8.983181,8.594675, 25322,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 00:33:06.168330,PlayArea2.py,0.052965,8.148722,1,200,3,0.055958,7.488571,0.054662,9.459637,8.495529, 10600,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 02:26:24.530341,PlayArea2.py,0.052965,8.148722,1,200,5,0.773115,6.466021,0.759486,11.591496,9.048419, 6779,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 11:12:08.481762,PlayArea2.py,0.052965,8.148722,1,200,7,0.756231,6.158741,0.726045,12.172160,9.340305, 31529,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 12:09:08.123522,PlayArea2.py,0.052965,8.148722,1,200,9,0.763145,5.804022,0.749839,12.333587,9.182740, 3412,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 12:40:14.051234,PlayArea2.py,0.052965,8.148722,1,200,11,0.762502,5.270701,0.706109,12.412594,8.988063, 1859,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 13:06:58.127792,PlayArea2.py,0.052965,8.148722,1,200,13,0.760251,5.222362,0.728617,12.337443,9.022910, 1595,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 14:28:06.744430,PlayArea2.py,0.052965,8.148722,1,200,15,0.776331,5.209718,0.695820,13.073350,9.286812, 4839,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 15:11:06.183885,PlayArea2.py,0.052965,8.148722,1,200,17,0.760090,4.707363,0.648232,12.469991,8.654171, 2548,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 16:05:48.448937,PlayArea2.py,0.052965,8.148722,1,200,19,0.750121,4.530292,0.685531,12.173961,8.527786, 3255,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 16:40:20.561866,PlayArea2.py,0.052965,8.148722,1,200,21,0.759447,4.469764,0.686817,12.035815,8.316786, 2050,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 17:10:37.320006,PlayArea2.py,0.052965,8.148722,1,200,23,0.753176,4.569984,0.672026,12.588668,8.636231, 1787,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 17:42:33.997912,PlayArea2.py,0.052965,8.148722,1,200,25,0.821354,3.836249,0.698392,13.145467,8.701042, 1879,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 18:10:31.894939,PlayArea2.py,0.052965,8.148722,1,200,27,0.827947,3.862251,0.704180,12.596985,8.300498, 1650,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
+2020-01-09 21:00:20.620974,PlayArea2.py,0.052965,8.148722,1,200,29,0.791446,3.853304,0.689389,12.954555,8.734395, 10162,LTAU000735,PlayArea2 Test - Removed second dropout, 512 then 256 nodes
