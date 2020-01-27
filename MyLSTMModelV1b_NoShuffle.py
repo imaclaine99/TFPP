@@ -78,5 +78,5 @@ if __name__ == "__main__":
                             print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
                             model.model.summary()
                             myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
-                                                   ".\output_images\LTSM 1st_Model_WithSequences_1b_NoShuffle" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+                                                   "LTSM 1st_Model_WithSequences_1b_NoShuffle" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 

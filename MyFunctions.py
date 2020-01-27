@@ -8,6 +8,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.core import Flatten
 from keras.layers.core import Dropout
+from keras import backend as K
 import tensorflow as tf
 from numpy import mean
 from sklearn.metrics import classification_report
@@ -24,6 +25,10 @@ processing_range = 250          #  Default number of rows to process.  Can set t
 output_summary_logfile  = ".\outputsummary.csv"
 model_description = ""          # This can be useful to set for logging purposes
 last_exec_duration = 0
+model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
+clear_session = True        # Define whether or not we clear Keras session after fit and plot
+output_images_path = r'.\\output_images\\'
+callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
 
 def parsefile(filename, output_column_name, strip_first_row=False):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -141,7 +146,7 @@ def plot_and_save_history(history, epochs, filename):
     plt.xlabel("Epoch #")
     plt.ylabel("Loss/Accuracy")
     plt.legend()
-    plt.savefig(filename)
+    plt.savefig(output_images_path + filename)
     plt.close()
 
 def plot_and_save_history_with_rand_baseline(history, history_rand_baseline, epochs, filename):
@@ -231,7 +236,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     plt.ylabel("Loss/Accuracy")
     plt.axes().set_ylim([0, max_y_axis])        # Set max Y axis to 10.   This may need to change, but works for now.
     plt.legend()
-    plt.savefig(filename)
+    plt.savefig(output_images_path + filename)
     plt.close()
 
     # Write Summary Data
@@ -263,11 +268,19 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
     # initialize our initial learning rate and # of epochs to train for
     INIT_LR = 0.01
     #    EPOCHS = 75
+    global callbacks
 
     model.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
     # train the neural network
-    H = model.fit(trainX, trainY, validation_data=(testX, testY),
-                  epochs=EPOCHS, batch_size=batch_size, verbose = 2)
+
+    if len(callbacks) == 0:
+        # No Callbacks
+        H = model.fit(trainX, trainY, validation_data=(testX, testY),
+                      epochs=EPOCHS, batch_size=batch_size, verbose = 2)
+    else:
+        H = model.fit(trainX, trainY, validation_data=(testX, testY),
+                      epochs=EPOCHS, batch_size=batch_size, verbose = 2, callbacks = callbacks)
+
     return H
 0
 def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250):
@@ -297,6 +310,7 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
     else:
         resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_meta.csv"
 
+
     import time
     start = time.time()
     H = compile_and_fit(model, xtrain, ytrain, xtest, ytest, loss='mean_squared_error')
@@ -310,7 +324,9 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
 
     plot_and_save_history_with_baseline(H, EPOCHS, output_prefix, resolved_meta_filename)
 
-    # Write out some summary info
+    if clear_session == True:
+    # Reset Keras Session, to avoid overheads on multiple iterations
+        K.clear_session()
 
 
 

@@ -17,7 +17,7 @@ import argparse
 import MyFunctions as myf
 
 num_samples = 250
-myf.EPOCHS = 200
+myf.EPOCHS = 5
 myf.model_description = 'PlayArea2 Test - Removed second dropout, 512 then 256 nodes'
 
 import os
@@ -96,5 +96,5 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dropout(.2))
     model_new.add(Dense(1))       # remove softmax, given we have multi-value output
 #    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch" + str(i))
-    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, ".\output_images\Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
+    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, "Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
     del model_new

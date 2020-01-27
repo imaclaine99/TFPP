@@ -43,25 +43,27 @@ if __name__ == "__main__":
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
     start_layer = 1
-    start_layer1_nodes = 1
+    start_layer1_nodes = 9
+
+    max_nodes = 10
 
 
     for layers in (1,2, 3, 4, 5)      :
         if layers < start_layer :
             continue
-        for nodes1 in range(1, 11)    :
+        for nodes1 in range(1, max_nodes+1)    :
             if (layers == start_layer) and (nodes1 < start_layer1_nodes) :
                 continue
-            for nodes2 in range(1, 11):
+            for nodes2 in range(1, max_nodes+1):
                 if layers < 2 and nodes2 > 1 or nodes2 > nodes1:
                     continue
-                for nodes3 in range(1, 11):
+                for nodes3 in range(1, max_nodes+1):
                     if layers < 3 and nodes3 > 1 or nodes3 > nodes2 :
                         continue
-                    for nodes4 in range(1, 11):
+                    for nodes4 in range(1, max_nodes+1):
                         if layers < 4 and nodes4 > 1 or nodes4 > nodes3:
                             continue
-                        for nodes5 in range(1, 11):
+                        for nodes5 in range(1, max_nodes+1):
                             if layers < 5 and nodes5 > 1 or nodes5 > nodes4:
                                 continue
                             model = MyLSTMModelV1(layers, [2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
@@ -73,5 +75,6 @@ if __name__ == "__main__":
                                                        ".\output_images\LTSM 1st_Model_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
                             else:
                                 model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
-                                                       ".\output_images\LTSM_Model1Sell_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+                                                       "LTSM_Model1Sell_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+
 

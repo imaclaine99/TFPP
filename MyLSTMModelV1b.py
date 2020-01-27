@@ -1,14 +1,16 @@
+from clr_callback import CyclicLR
 from keras import Sequential, regularizers
 from keras.initializers import RandomNormal
 from keras.layers import Flatten, Dense, Dropout, LSTM
 
-import MyFunctions
+import MyFunctions as myf
 
 # Enhances the first model, by ensuring that the LAST layer has no sequences returned, but ALL OTHER LAYERS DO
 # still running STATELESS
 
 num_samples = 250
 node_iterations = 5
+clr_mode = 'triangular'
 
 class MyLSTMModelV1b (object):
     lr_reg = 0.001      # Not sure of the difference of this vs the init?
@@ -19,6 +21,11 @@ class MyLSTMModelV1b (object):
         self._nodes_per_layer = nodes_per_layer
         self.l2_reg = 0.001
         self._model_def()
+
+        if clr_mode == 'triangular':
+            clr = CyclicLR(base_lr=0.001, max_lr=0.006,
+                           step_size=2000.)         # Using all defaults
+            myf.callbacks.append(clr)
 
     def _model_def(self):
         self.model = Sequential()
@@ -50,8 +57,8 @@ if __name__ == "__main__":
 
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
-    start_layer = 3             #  Same as no sequences if only 1 layer
-    start_layer1_nodes = 4
+    start_layer = 1             #  Same as no sequences if only 1 layer
+    start_layer1_nodes = 1
 
 
     for layers in (1,2, 3, 4, 5)      :
@@ -76,6 +83,6 @@ if __name__ == "__main__":
                             print (layers)
                             print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
                             model.model.summary()
-                            MyFunctions.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
-                                                   "LTSM 1st_Model_WithSequences_1b_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+                            myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
+                                                   "LTSM 1b_CLR_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 
