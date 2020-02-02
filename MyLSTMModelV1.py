@@ -43,9 +43,9 @@ if __name__ == "__main__":
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
     start_layer = 1
-    start_layer1_nodes = 9
+    start_layer1_nodes = 1
 
-    max_nodes = 10
+    max_nodes = 9       #  Was 9, but 10 doesn't really make sense (too many), and is very time consuming
 
 
     for layers in (1,2, 3, 4, 5)      :
@@ -71,10 +71,14 @@ if __name__ == "__main__":
                             print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
                             model.model.summary()
                             if buy_or_sell == 'Buy':
+                                model.myf.model_description = 'LSTMMModelV1 Buy Rule'
                                 model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
                                                        ".\output_images\LTSM 1st_Model_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+
                             else:
+                                model.myf.model_description = 'LSTMMModelV1 Sell Rule - No Dropout - No CLR'
                                 model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
                                                        "LTSM_Model1Sell_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 
 
+### THIS IS BUGGY - DO NOT USE - USE 1B INSTEAD!!

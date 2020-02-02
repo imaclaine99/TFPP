@@ -20,7 +20,7 @@ import csv          # I use this for writing csv logs
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
 batch_size = 8                  # Testing suggests a batch of 4 or 2 gives better results than 8 - gets to a better loss reduction AND more quickly.  Let's use 4 moving forward for now...
-shuffle_data = True             # For LSTM, may not want to shuffle data
+shuffle_data = True             # For LSTM, may not want to shuffle data.    This applies to both the training/test data split, as well as the fit function when training.
 processing_range = 250          #  Default number of rows to process.  Can set to something else if needed (and useful for testing!)
 output_summary_logfile  = ".\outputsummary.csv"
 model_description = ""          # This can be useful to set for logging purposes
@@ -276,10 +276,10 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
     if len(callbacks) == 0:
         # No Callbacks
         H = model.fit(trainX, trainY, validation_data=(testX, testY),
-                      epochs=EPOCHS, batch_size=batch_size, verbose = 2)
+                      epochs=EPOCHS, batch_size=batch_size, verbose = 2, shuffle = shuffle_data)
     else:
         H = model.fit(trainX, trainY, validation_data=(testX, testY),
-                      epochs=EPOCHS, batch_size=batch_size, verbose = 2, callbacks = callbacks)
+                      epochs=EPOCHS, batch_size=batch_size, verbose = 2, shuffle = shuffle_data, callbacks = callbacks)
 
     return H
 0

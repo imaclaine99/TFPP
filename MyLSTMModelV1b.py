@@ -3,16 +3,20 @@ from keras import Sequential, regularizers
 from keras.initializers import RandomNormal
 from keras.layers import Flatten, Dense, Dropout, LSTM
 
-import MyFunctions as myf
 
 # Enhances the first model, by ensuring that the LAST layer has no sequences returned, but ALL OTHER LAYERS DO
 # still running STATELESS
 
 num_samples = 250
-node_iterations = 5
+epochs = 100
+node_iterations = 9
 clr_mode = 'triangular'
+batch_size = 8
+dropout = 0.4
+buy_or_sell = 'Sell'
 
 class MyLSTMModelV1b (object):
+    import MyFunctions as myf
     lr_reg = 0.001      # Not sure of the difference of this vs the init?
     dropout = 0.2
 
@@ -20,12 +24,16 @@ class MyLSTMModelV1b (object):
         self.num_layers = num_layers
         self._nodes_per_layer = nodes_per_layer
         self.l2_reg = 0.001
+        self.myf.EPOCHS = epochs
+        self.myf.batch_size = batch_size
+
         self._model_def()
+
 
         if clr_mode == 'triangular':
             clr = CyclicLR(base_lr=0.001, max_lr=0.006,
                            step_size=2000.)         # Using all defaults
-            myf.callbacks.append(clr)
+            self.myf.callbacks.append(clr)
 
     def _model_def(self):
         self.model = Sequential()
@@ -33,10 +41,10 @@ class MyLSTMModelV1b (object):
         for i in range(0, self.num_layers):
             # BTW - the original looks buggy for more than one layer?
             if i == 0 and self.num_layers == 1:
-                self.model.add(LSTM(self._nodes_per_layer[i], input_shape=(num_samples, 4)))
+                self.model.add(LSTM(self._nodes_per_layer[i], input_shape=(num_samples, 4), dropout=dropout))
             elif i == 0:
                 # Means we're on first layer, but not last - there we want to define input shape AND return sequences
-                self.model.add(LSTM(self._nodes_per_layer[i], input_shape=(num_samples, 4), return_sequences=True))
+                self.model.add(LSTM(self._nodes_per_layer[i], input_shape=(num_samples, 4), return_sequences=True, dropout=dropout))
             elif i == self.num_layers-1 :
                 # We're on the last layer - don't retrun sequences
                 self.model.add(LSTM(self._nodes_per_layer[i]))
@@ -57,7 +65,7 @@ if __name__ == "__main__":
 
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
-    start_layer = 1             #  Same as no sequences if only 1 layer
+    start_layer = 2             #  Same as no sequences if only 1 layer
     start_layer1_nodes = 1
 
 
@@ -80,9 +88,21 @@ if __name__ == "__main__":
                             if layers < 5 and nodes5 > 1 or nodes5 > nodes4:
                                 continue
                             model = MyLSTMModelV1b(layers, [2 ** nodes1, 2 ** nodes2, 2 ** nodes3, 2 ** nodes4, 2 ** nodes5])
+
                             print (layers)
                             print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
                             model.model.summary()
-                            myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
-                                                   "LTSM 1b_CLR_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+
+                            if buy_or_sell == 'Buy':
+                                model.myf.model_description = 'LSTMMModelV1b Buy Rule with CLR'
+                                model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
+                                                       "LTSM 1b_CLR_" + str(layers) + " layers and " + str(
+                                                           nodes1) + ", " + str(nodes2) + ", " + str(
+                                                           nodes3) + ", " + str(nodes4) + ", " + str(nodes5) + ", ")
+
+
+                            else:
+                                model.myf.model_description = 'LSTMMModelV1b Sell Rule - 0.4 Dropout CLR'
+                                model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
+                                                       "LTSM_Model1Sbell_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 
