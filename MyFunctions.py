@@ -3,32 +3,49 @@ from math import trunc
 import sys
 import pandas as pd
 import numpy as np
+from sklearn.utils import shuffle
 import keras
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.core import Flatten
 from keras.layers.core import Dropout
+from clr_callback import CyclicLR
 from keras import backend as K
+from keras import optimizers
 import tensorflow as tf
 from numpy import mean
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import datetime
+import math
+from learningratefinder import LearningRateFinder
 import csv          # I use this for writing csv logs
 
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
 batch_size = 8                  # Testing suggests a batch of 4 or 2 gives better results than 8 - gets to a better loss reduction AND more quickly.  Let's use 4 moving forward for now...
-shuffle_data = True             # For LSTM, may not want to shuffle data.    This applies to both the training/test data split, as well as the fit function when training.
 processing_range = 250          #  Default number of rows to process.  Can set to something else if needed (and useful for testing!)
+shuffle_data = True             # For LSTM, may not want to shuffle data.    This applies to both the training/test data split, as well as the fit function when training.
+is_dupe_data = False           # If True, duplicates certain y train (not Test) Values.  ONLY USE IF shuffle_data is true
+dupe_vals = (1,2,5,10)
 output_summary_logfile  = ".\outputsummary.csv"
 model_description = ""          # This can be useful to set for logging purposes
 last_exec_duration = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
 clear_session = True        # Define whether or not we clear Keras session after fit and plot
+use_lrf = False             # Do we use the LR Finder or not?  If we do, we then need to populate LR_MIN and LR_MAX
+lrf_batch = 64              # Needs to be large enough not to get 'noise', especially with data with limited entries
+clr_mode = 'None'           #  'triangular'
+lr_min = 1e-15 #2.5e-5             # 0.00001            # Used with CLR - set by LR Finder if that is used
+lr_max = 0.01               # Used with CLR - set by LR Finder if that is used
+default_optimizer = 'Nadam' # Not used if explicity set when called in compile and fit, otherwise this is used.  Can be anything that is supported, but keep in mind that different optimizers will work with LR very differently!
+                            # Other options:   SGD,   SGD+CLR, Adam, ????.    Need to decide best way to manage tunables for the optimser...
+                            # SGD+NM  (Nesterov Momentum), AdamDelta (?)
+                            # Do I also want to specific optimizer tunables - e.g. opt_lr, opt_??
 output_images_path = r'.\\output_images\\'
 callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
+                        # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
 
 def parsefile(filename, output_column_name, strip_first_row=False):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -79,7 +96,7 @@ def parse_data(olhc_array, results_array, num_samples):
     return x_train, y_train
 
 
-def parse_data_to_trainXY(filename, output_column_name, num_samples=250, strip_first_row=False, test_size=0.20,
+def parse_data_to_trainXY(filename, output_column_name, num_samples=250, strip_first_row=False, test_size=0.25,
                           random_state=42):
     """"
         Function to read in a CSV, process it, and return train and test X Y data
@@ -94,6 +111,13 @@ def parse_data_to_trainXY(filename, output_column_name, num_samples=250, strip_f
     # I am mixxing my variables here - xtrain and ytrain above and actually data and outcomes - need to fix this later
     (trainX, testX, trainY, testY) = train_test_split(x_train,
                                                       y_train, test_size=test_size, random_state=random_state, shuffle = shuffle_data)
+
+    # dupe data
+    # Note - we do this AFTER we split test and train, to stop data sets being in both test and train, which would artificially increase the validation accuracy
+    if is_dupe_data:
+        print ("[INFO] Duping data with values" + str(dupe_vals))
+        for i in dupe_vals:
+            trainX, trainY = dupe_data(trainX, trainY, i)
 
     return trainX, testX, trainY, testY
 
@@ -215,6 +239,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     if accuracy_multiplier < 1:
         accuracy_multiplier = 1
 
+    # No longer needed, as the path is set elsewhere
     plot_filename = filename.split('\\')
     plot_filename = plot_filename[len(plot_filename)-1]
 
@@ -236,7 +261,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     plt.ylabel("Loss/Accuracy")
     plt.axes().set_ylim([0, max_y_axis])        # Set max Y axis to 10.   This may need to change, but works for now.
     plt.legend()
-    plt.savefig(output_images_path + filename)
+    plt.savefig(output_images_path + filename + ".png")             # 10/2/2020 - added .png, as this is now needed?
     plt.close()
 
     # Write Summary Data
@@ -264,13 +289,94 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
                                                                   last_exec_duration, platform.node(), model_description))
 
 
-def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = 'Nadam', metrics: object = 'accuracy') -> object:
+def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy') -> object:
     # initialize our initial learning rate and # of epochs to train for
     INIT_LR = 0.01
     #    EPOCHS = 75
     global callbacks
+    global use_lrf
+    global lr_max
+    global lr_min
+    global clr_mode
+
+    print ("[INFO] About to start with optimizer " + str(optimizer))
+
+    if optimizer == 'SGD+CLR':
+        optimizer = 'SGD'
+        if clr_mode == 'None':
+            clr_mode = 'triangular'
+        if use_lrf == False:
+            use_lrf = True
+
+    if optimizer=='SGD+NM':
+        optimizer = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+
+   # if optimizer=='AdamDelta'
+   #     optimizer = optimizers.Adadelta()
+
+    print ("[INFO] About to start with optimizer " + str(optimizer))
 
     model.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
+
+
+    # Check if LR Finder is to be used, which will then set min / max LR rates  -
+    # TODO: Should move this to another function later...
+    if use_lrf == True:
+        print("[INFO] finding learning rate...")
+        lrf = LearningRateFinder(model)
+        lrf.find((trainX, trainY), 1e-15, 1e1,                 # Was e-11 or e-12 starting - want to ensure we start at a low enough value
+                 stepsPerEpoch=np.ceil((len(trainX) / float(batch_size))),
+                 batchSize=lrf_batch, sampleSize=8192)         #  Increasd to 4096 from 2048 - does this help find better values?          # Using LRF batch size of 48, given data skews - want to see if this helps with early loss osciliation, which may be due to lack of uniformity in data.   Alternative will be to create more Sell Rulle data (clone)
+        lrf.plot_loss()
+
+        # Risk here if there are two minimums - this will pick the lowest, not highest.
+        lr_start_index = lrf.losses.index(min(lrf.losses))
+        min_loss = min(lrf.losses)
+        min_loss_lr = lrf.lrs[lrf.losses.index(min(lrf.losses))]
+
+        print("[INFO] - lowest loss rate is " + str(min_loss) + " at LR of " + str(min_loss_lr))
+
+
+        segment_LRs = []
+        # Experimental
+        # Split the landscape into 20, and assess min/max per segment
+        step = math.floor(len(lrf.losses)/20)
+        for i in range(0, len(lrf.losses), step):
+            # Loop through in 20 'segments
+            current_min = min(lrf.losses[i:i+step])
+            current_max = max(lrf.losses[i:i+step])
+            current_ave = np.average(lrf.losses[i:i+step])
+            segment_LRs.append((current_min,current_max,current_ave))
+
+
+        # Work backwards to find where to 'start'
+        step = math.floor(lrf.losses.index(min(lrf.losses)) / 10)
+        max_loss = min_loss
+        max_loss_lr = min_loss_lr
+        for i in range(lr_start_index - step, 0, -step):
+            # Iterate backwards by 10% at a time.  Stop when the loss increase is small
+            current_loss = lrf.losses[i]
+            if current_loss > (max_loss * 1.05):  # 5% better
+                max_loss = current_loss
+                max_loss_lr = lrf.lrs[i]
+            else:
+                break
+                # We're done!  This is our min LR
+
+
+
+        print("[INFO] min loss LR " + str(min_loss_lr) + " max loss LR " + str(max_loss_lr))
+        # This looks backwards, as the min_loss_lr is at the max_lr (highest LR value), and the max_loss_lr is when we stop, moving right to left, so therefore the lowest LR.
+        lr_max = min_loss_lr
+        lr_min = max_loss_lr
+        # End LRF CODE
+
+    # Enable CLR Mode, if to be used
+    if clr_mode == 'triangular':
+        clr = CyclicLR(base_lr=lr_min, max_lr=lr_max,
+                       step_size=800.)         # Using all defaults except Step Size - changed to 800, which should work well with a batch of 16
+        callbacks.append(clr)
+
     # train the neural network
 
     if len(callbacks) == 0:
@@ -282,7 +388,28 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
                       epochs=EPOCHS, batch_size=batch_size, verbose = 2, shuffle = shuffle_data, callbacks = callbacks)
 
     return H
-0
+
+
+def dupe_data(xtrain, ytrain, y_val_to_dupe):
+    """
+    :param xtrain:
+    :param ytrain:
+    :param y_val_to_dupe:
+    doubles the occurence of y_val_to_dupe in both the x_train and y_train, by adding them at the end
+    :return:
+    """
+    for i in range(0, len(xtrain)):
+        if ytrain[i] == y_val_to_dupe:
+            # This will perform badly...  Must be a better way??
+            xtrain = np.append(xtrain, [xtrain[i]], 0)
+            # xtrain.append(xtrain[i])
+            #ytrain.append(ytrain[i])
+            ytrain = np.append(ytrain, [ytrain[i]], 0)
+
+    # only problem with this is that the data is no longer shuffled at the end...
+    xtrain, ytrain = shuffle(xtrain, ytrain)
+    return xtrain, ytrain
+
 def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250):
     """
     # Would be good to be able to copy a model, to be able to run it against random data...
@@ -313,7 +440,7 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
 
     import time
     start = time.time()
-    H = compile_and_fit(model, xtrain, ytrain, xtest, ytest, loss='mean_squared_error')
+    H = compile_and_fit(model, xtrain, ytrain, xtest, ytest, loss='mean_squared_error', optimizer=default_optimizer)
 #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
     end = time.time()
 
@@ -565,3 +692,7 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
 #model.add(Dense(1))       # remove softmax, given we have multi-value output
 
 #parse_process_plot("DAX_Prices_WithMLPercentages.csv", "BuyWeightingRule", model, "Model1_Percent_NewRandom")
+
+#### PlayPenCode
+#myf.parse_file("DAX4ML.csv")
+parse_file("^GDAXI.csv")

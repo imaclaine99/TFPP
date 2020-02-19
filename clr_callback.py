@@ -131,3 +131,4 @@ class CyclicLR(Callback):
             self.history.setdefault(k, []).append(v)
 
         K.set_value(self.model.optimizer.lr, self.clr())
+        print("[INFO] CLR Setting LR to " + str(self.model.optimizer.lr))

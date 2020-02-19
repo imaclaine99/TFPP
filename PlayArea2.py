@@ -14,6 +14,8 @@ from keras.initializers import RandomNormal
 from keras.optimizers import SGD
 import matplotlib.pyplot as plt
 import argparse
+from learningratefinder import LearningRateFinder
+import math
 import MyFunctions as myf
 
 num_samples = 250
@@ -76,6 +78,45 @@ model2.add(Dense(1))       # remove softmax, given we have multi-value output
 #model2.add(Dense(1))       # remove softmax, given we have multi-value output
 
 #MyFunctions.parse_process_plot("DAX_Prices_WithMLPercentages.csv", "BuyWeightingRule", model2, "Model1_Relu_Percent_NewRandom_001L2Reg")
+
+LRR = 1
+BATCH_SIZE = 16
+
+# LRFinder code
+if LRR == 1:
+    (trainX, testX, trainY, testY) = myf.parse_data_to_trainXY(".\parsed_data\^GDAXI.csv", "SellWeightingRule")
+
+    model.compile(loss='mean_squared_error', optimizer='Nadam', metrics=["accuracy"])
+    print("[INFO] finding learning rate...")
+    lrf = LearningRateFinder(model)
+    lrf.find((trainX, trainY), 1e-10, 1e+1,
+             stepsPerEpoch=np.ceil((len(trainX) / float(BATCH_SIZE))),
+             batchSize=BATCH_SIZE)
+    lrf.plot_loss()
+
+    # Risk here if there are two minimums - this will pick the lowest, not highest.
+    lr_start_index = lrf.losses.index(min(lrf.losses))
+    min_loss = min(lrf.losses)
+    min_loss_lr = lrf.lrs[lrf.losses.index(min(lrf.losses))]
+
+    print("[INFO] - lowest loss rate is " + str(min_loss) + " at LR of " + str(min_loss_lr))
+
+    # Work backwards to find where to 'start'
+    step = math.floor(lrf.losses.index(min(lrf.losses))/10)
+    max_loss = min_loss
+    max_loss_lr = min_loss_lr
+    for i in range(lr_start_index-step, 0, -step) :
+        # Iterate backwards by 10% at a time.  Stop when the loss increase is small
+        current_loss = lrf.losses[i]
+        if current_loss > (max_loss * 1.05):      # 5% better
+            max_loss = current_loss
+            max_loss_lr = lrf.lrs[i]
+        else:
+            break
+            # We're done!  This is our min LR
+
+    print("[INFO] min loss LR " + str (min_loss_lr) + " max loss LR " + str(max_loss_lr))
+### End LRFinder Code
 
 
 model_arr = []

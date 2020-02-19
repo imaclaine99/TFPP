@@ -8,17 +8,19 @@ from keras.layers import Flatten, Dense, Dropout, LSTM
 # still running STATELESS
 
 num_samples = 250
-epochs = 100
+epochs = 200
 node_iterations = 9
-clr_mode = 'triangular'
-batch_size = 8
-dropout = 0.4
-buy_or_sell = 'Sell'
+#clr_mode = 'triangular'            # Default is none.  May not be a good idea to use with Nadam?
+use_lrf = False #  True
+batch_size = 16
+dropout = 0.0           #   0.4
+buy_or_sell = 'Sell'     # Buy  Sell
+is_dupe_data = False #True   # Experimental
 
 class MyLSTMModelV1b (object):
     import MyFunctions as myf
     lr_reg = 0.001      # Not sure of the difference of this vs the init?
-    dropout = 0.2
+#    dropout = 0.2
 
     def __init__(self, num_layers, nodes_per_layer):
         self.num_layers = num_layers
@@ -26,14 +28,22 @@ class MyLSTMModelV1b (object):
         self.l2_reg = 0.001
         self.myf.EPOCHS = epochs
         self.myf.batch_size = batch_size
+        self.myf.use_lrf = use_lrf
+        self.myf.is_dupe_data = is_dupe_data
+        self.myf.dupe_vals = (1,2,2,5,10)       # Can't hurt to have 2 in twice can it?
+        self.myf.default_optimizer = 'SGD+CLR'
+        if 'clr_mode' in locals():
+            self.myf.clr_mode = clr_mode
+        self.myf.lr_min = 1.75e-5  # Used with CLR - set by LR Finder if that is used
+        self.myf.lr_max = .009  # Used with CLR - set by LR Finder if that is used
 
         self._model_def()
 
-
-        if clr_mode == 'triangular':
-            clr = CyclicLR(base_lr=0.001, max_lr=0.006,
-                           step_size=2000.)         # Using all defaults
-            self.myf.callbacks.append(clr)
+        # Haven't yet compiled, and run LRF.  Need to move this   -  MOVED TO MYFUNCTIONS
+        #if clr_mode == 'triangular':
+        #    clr = CyclicLR(base_lr=self.myf.lr_min, max_lr=self.myf.lr_max,
+        #                   step_size=2000.)         # Using all defaults
+        #    self.myf.callbacks.append(clr)
 
     def _model_def(self):
         self.model = Sequential()
@@ -46,10 +56,10 @@ class MyLSTMModelV1b (object):
                 # Means we're on first layer, but not last - there we want to define input shape AND return sequences
                 self.model.add(LSTM(self._nodes_per_layer[i], input_shape=(num_samples, 4), return_sequences=True, dropout=dropout))
             elif i == self.num_layers-1 :
-                # We're on the last layer - don't retrun sequences
+                # We're on the last layer - don't return sequences, don't have dropout
                 self.model.add(LSTM(self._nodes_per_layer[i]))
             else :
-                # Return sequences, but no input shape
+                # Return sequences, but no input shape - not sure if this matters?
                 self.model.add(LSTM(self._nodes_per_layer[i], return_sequences=True))
         #                                   activation="relu", kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None),
  #                                         kernel_regularizer=regularizers.l2(self.l2_reg)))
@@ -65,8 +75,8 @@ if __name__ == "__main__":
 
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
-    start_layer = 2             #  Same as no sequences if only 1 layer
-    start_layer1_nodes = 1
+    start_layer = 1             #  Same as no sequences if only 1 layer
+    start_layer1_nodes = 6
 
 
     for layers in (1,2, 3, 4, 5)      :
@@ -87,22 +97,26 @@ if __name__ == "__main__":
                         for nodes5 in range(1, node_iterations):
                             if layers < 5 and nodes5 > 1 or nodes5 > nodes4:
                                 continue
-                            model = MyLSTMModelV1b(layers, [2 ** nodes1, 2 ** nodes2, 2 ** nodes3, 2 ** nodes4, 2 ** nodes5])
+                            for opt in ( 'Adadelta', 'Adam', 'Adamax', 'SGD+NM', 'Nadam', 'SGD+CLR'):
 
-                            print (layers)
-                            print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
-                            model.model.summary()
+                                model = MyLSTMModelV1b(layers, [2 ** nodes1, 2 ** nodes2, 2 ** nodes3, 2 ** nodes4, 2 ** nodes5])
 
-                            if buy_or_sell == 'Buy':
-                                model.myf.model_description = 'LSTMMModelV1b Buy Rule with CLR'
-                                model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
-                                                       "LTSM 1b_CLR_" + str(layers) + " layers and " + str(
-                                                           nodes1) + ", " + str(nodes2) + ", " + str(
-                                                           nodes3) + ", " + str(nodes4) + ", " + str(nodes5) + ", ")
+                                print (layers)
+                                print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
+                                model.model.summary()
+
+                                if buy_or_sell == 'Buy':
+                                    model.myf.model_description = 'LSTMMModelV1b ' + buy_or_sell + ' Rule - No Dropout No CLR+LRF 0.25 TestRatio NoDupeData' + opt
+                                    model.myf.default_optimizer = opt
+                                    model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
+                                                           "LTSM_Model1bBuy_ NoDrop_NoDupeData" + opt + "_" + str(layers) + " layers and " + str(
+                                                               nodes1) + ", " + str(nodes2) + ", " + str(
+                                                               nodes3) + ", " + str(nodes4) + ", " + str(nodes5) + ", ")
 
 
-                            else:
-                                model.myf.model_description = 'LSTMMModelV1b Sell Rule - 0.4 Dropout CLR'
-                                model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
-                                                       "LTSM_Model1Sbell_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
+                                else:
+                                    model.myf.model_description = 'LSTMMModelV1b Sell Rule - No Dropout No CLR+LRF 0.25 TestRatio NoDupeData' + opt
+                                    model.myf.default_optimizer = opt
+                                    model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
+                                                           "LTSM_Model1bSell_ NoDrop_NoDupeData" + opt + "_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 
