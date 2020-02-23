@@ -46,6 +46,8 @@ default_optimizer = 'Nadam' # Not used if explicity set when called in compile a
 output_images_path = r'.\\output_images\\'
 callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
+                        # Note:  Once set (e.g. SGD+CLR) CLR can not currently be removed, as the Callback remains.  Need to review this in the future.
+                        # Not a big prority, as CLR is not being used...
 
 def parsefile(filename, output_column_name, strip_first_row=False):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -255,7 +257,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     plt.plot(N, np.array(history.history["val_accuracy"])*accuracy_multiplier, label="val_acc*" + str(accuracy_multiplier))
 #    plt.plot(N, np.array(meta_np[1]).tolist()*epochs, label= 'best_guess_loss')
     plt.plot(N, np.full_like(N, best_guess_loss*loss_multiplier, np.float32), label= 'best_guess_loss*' + str(loss_multiplier))
-    plt.plot(N, np.full_like(N, best_guess_acc*accuracy_multiplier, np.float32), label= 'best_guess_accuracy')
+    plt.plot(N, np.full_like(N, best_guess_acc*accuracy_multiplier, np.float32), label= 'best_guess_accuracy*' + str(accuracy_multiplier))
     plt.title("Training Loss and Accuracy (" + filename + ")")
     plt.xlabel("Epoch #")
     plt.ylabel("Loss/Accuracy")
@@ -353,17 +355,20 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
         step = math.floor(lrf.losses.index(min(lrf.losses)) / 10)
         max_loss = min_loss
         max_loss_lr = min_loss_lr
-        for i in range(lr_start_index - step, 0, -step):
-            # Iterate backwards by 10% at a time.  Stop when the loss increase is small
-            current_loss = lrf.losses[i]
-            if current_loss > (max_loss * 1.05):  # 5% better
-                max_loss = current_loss
-                max_loss_lr = lrf.lrs[i]
-            else:
-                break
-                # We're done!  This is our min LR
 
+        if step > 0:
 
+            for i in range(lr_start_index - step, 0, -step):
+                # Iterate backwards by 10% at a time.  Stop when the loss increase is small
+                current_loss = lrf.losses[i]
+                if current_loss > (max_loss * 1.05):  # 5% better
+                    max_loss = current_loss
+                    max_loss_lr = lrf.lrs[i]
+                else:
+                    break
+                    # We're done!  This is our min LR
+        else:
+            print('[INFO] Step is 0 on LRF.  This won''t work well - will set constant LR to avoid erroring')
 
         print("[INFO] min loss LR " + str(min_loss_lr) + " max loss LR " + str(max_loss_lr))
         # This looks backwards, as the min_loss_lr is at the max_lr (highest LR value), and the max_loss_lr is when we stop, moving right to left, so therefore the lowest LR.
