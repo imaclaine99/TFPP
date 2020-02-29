@@ -1,6 +1,7 @@
 from math import trunc
 
 import sys
+import os
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
@@ -31,7 +32,13 @@ is_dupe_data = False           # If True, duplicates certain y train (not Test) 
 dupe_vals = (1,2,5,10)
 output_summary_logfile  = ".\outputsummary.csv"
 model_description = ""          # This can be useful to set for logging purposes
+# Set some global metrics to track last execution, to make it easier to grab later.  A new model should reset these.
 last_exec_duration = 0
+model_best_acc = 0
+model_best_loss = 999
+model_best_val_acc = 0
+model_best_val_loss= 999
+model_best_combined_ave_loss = 999
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
 clear_session = True        # Define whether or not we clear Keras session after fit and plot
 use_lrf = False             # Do we use the LR Finder or not?  If we do, we then need to populate LR_MIN and LR_MAX
@@ -210,6 +217,14 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     :param filename:
     :return:
     """
+
+    # Globals so we can read them later
+    global model_best_combined_ave_loss
+    global model_best_acc
+    global model_best_loss
+    global model_best_val_acc
+    global model_best_val_loss
+
     # read meta_data from file
     meta_np = np.recfromcsv(metadatafilename)      # best guess, best_guess_loss, best_guess_accuracy
     best_guess = meta_np[0]
@@ -577,6 +592,7 @@ def parse_file (infilename):
     # This would be a useful number to compare against - it should be very similar to what 'random' produces over time.  Using this instead of random would be easier, and save time
     # To do this, I need to calculate:
         # Sum of all errors if 0, 1, 2, 3, 4, 5
+
     buy_best_ave_loss = 999
     buy_best_accuracy = 0
     sell_best_ave_loss = 999
@@ -680,6 +696,112 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         else:
             return 0
 
+
+def read_row (datafile):
+    """
+    Read the next NON-STARTED row and update the flag to STARTED
+    :return: 
+    """
+# Read in the Models file
+    tempfilename = os.path.splitext(datafile)[0] + '.bak'
+    try:
+        os.remove(tempfilename)  # delete any existing temp file
+    except OSError:
+        pass
+    os.rename(datafile, tempfilename)
+
+    # create a temporary dictionary from the input file
+    with open(tempfilename, mode='r') as infile:
+        reader = csv.DictReader(infile, skipinitialspace=True)
+        #header = next(reader)  # skip and save header
+        outfile = open(datafile, mode='w', newline='')
+        fieldnames = ['Layers', 'Layer1', 'Layer2', 'Layer3', 'Layer4', 'Layer5', 'Started', 'Finished',
+                      'model_best_acc',
+                      'model_best_loss', 'model_best_val_acc', 'model_best_val_loss',
+                      'model_best_combined_ave_loss', 'ErrorDetails']
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+
+        return_row = None           # Default - If None, we're done or broken
+
+        for row in reader:
+            ## Any Updates??
+            if return_row == None and (row['Started'] == False or row['Started'] == 'False' or row['Started']=='FALSE'):
+                row['Started'] = True
+                return_row = row
+            writer.writerow(row)
+
+        outfile.close()
+
+        # Convert the layers to Dicts
+        if return_row != None :
+            return_row['Layer1'] = eval(return_row['Layer1'])
+            if len(return_row['Layer2']) > 0:
+                return_row['Layer2'] = eval(return_row['Layer2'])
+            if len(return_row['Layer3']) > 0:
+                return_row['Layer3'] = eval(return_row['Layer3'])
+            if len(return_row['Layer4']) > 0:
+                return_row['Layer4'] = eval(return_row['Layer4'])
+            if len(return_row['Layer5']) > 0:
+                return_row['Layer5'] = eval(return_row['Layer5'])
+
+        return return_row
+
+def finish_update_row (datafile, row_to_update):
+    """
+        Updates a current row with Finished and all relevant metrics
+            :return:
+    """
+    # Read in the Models file
+    tempfilename = os.path.splitext(datafile)[0] + '.bak'
+    try:
+        os.remove(tempfilename)  # delete any existing temp file
+    except OSError:
+        pass
+    os.rename(datafile, tempfilename)
+
+    # create a temporary dictionary from the input file
+    with open(tempfilename, mode='r') as infile:
+        reader = csv.DictReader(infile, skipinitialspace=True)
+        # header = next(reader)  # skip and save header
+        outfile = open(datafile, mode='w', newline='')
+        fieldnames = ['Layers', 'Layer1', 'Layer2', 'Layer3', 'Layer4', 'Layer5', 'Started', 'Finished',
+                      'model_best_acc',
+                      'model_best_loss', 'model_best_val_acc', 'model_best_val_loss',
+                      'model_best_combined_ave_loss', 'ErrorDetails']
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+
+        found_row = False
+        for row in reader:
+            ## Any Updates??
+
+            # Convert the layers to Dicts
+            row['Layer1'] = eval(row['Layer1'])
+            if len(row['Layer2']) > 0:
+                row['Layer2'] = eval(row['Layer2'])
+            if len(row['Layer3']) > 0:
+                row['Layer3'] = eval(row['Layer3'])
+            if len(row['Layer4']) > 0:
+                row['Layer4'] = eval(row['Layer4'])
+            if len(row['Layer5']) > 0:
+                row['Layer5'] = eval(row['Layer5'])
+            row['Started'] = eval(row['Started'])
+
+            if row == row_to_update:
+                found_row = True
+                row['Finished'] = True
+                row['model_best_acc'] = model_best_acc
+                row['model_best_loss'] = model_best_loss
+                row['model_best_val_acc'] = model_best_val_acc
+                row['model_best_val_loss'] = model_best_val_loss
+                row['model_best_combined_ave_loss'] = model_best_combined_ave_loss
+
+            writer.writerow(row)
+        return found_row
+
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
 
 
@@ -700,4 +822,4 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
 
 #### PlayPenCode
 #myf.parse_file("DAX4ML.csv")
-parse_file("^GDAXI.csv")
+#parse_file("^GDAXI.csv")

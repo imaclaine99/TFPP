@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
 #    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"      # comment out if CUDA is not to be used
     start_layer = 1             #  Same as no sequences if only 1 layer
-    start_layer1_nodes = 1
+    start_layer1_nodes = 8
 
 
     for layers in (1,2, 3, 4, 5)      :
