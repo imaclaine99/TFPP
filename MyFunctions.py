@@ -788,7 +788,7 @@ def finish_update_row (datafile, row_to_update):
                 row['Layer4'] = eval(row['Layer4'])
             if len(row['Layer5']) > 0:
                 row['Layer5'] = eval(row['Layer5'])
-            row['Started'] = eval(row['Started'])
+            row['Started'] = eval(row['Started'].title())
 
             if row == row_to_update:
                 found_row = True

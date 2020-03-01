@@ -11,7 +11,8 @@ import MyFunctions
 from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], True)
+if len(physical_devices) > 0:
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 #config = tf.config
 #config.gpu_options.allow_growth = True
