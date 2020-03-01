@@ -7,6 +7,18 @@ import ModelV2Config as ModelConfig
 import csv
 import MyFunctions
 
+# Should move this to MyFunctions later
+from keras.backend.tensorflow_backend import set_session
+import tensorflow as tf
+physical_devices = tf.config.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+#config = tf.config
+#config.gpu_options.allow_growth = True
+#session = tf.Session(config=config)
+#set_session(session)
+
+
 # Enhancesments over Model V1b (WIP):
 # 1. Move config outside of this file.  Makes it easier to maintain code vs config
 # 2. The creator will now take a Dict of Dicts, including number of layers.  This is a bit more work to parse, but provides a LOT more flexibility
@@ -62,6 +74,15 @@ class MyLSTMModelV2 (object):
                 self.flattened = True
                 self.model.add(Dense(2 ** int(current_layer['Nodes'])))
             else:
+                if self.flattened == False:
+                    # Check if we have any future LSTMs or not.  If we do NOT, flatten now
+                    future_lstm = False
+                    for look_ahead_layer in range(1, int(configDict['Layers'])+1):
+                        if configDict['Layer' + str(look_ahead_layer)]['LayerType'] == 'LSTM':
+                            future_lstm = True
+                if future_lstm == False:
+                    self.flattened = True
+                    self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
                 self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu", input_shape=(ModelConfig.num_samples, 4)))
         elif current_layer['LayerType'] == 'LSTM':
             if current_layer['ReturnSequences'] == 'True':
@@ -89,14 +110,29 @@ class MyLSTMModelV2 (object):
                     if layer == int(configDict['Layers']) and self.flattened == False:
                         self.model.add(Flatten())
                         self.flattened = True
-                    self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                    if self.flattened == False:
+                        # Check if we have any future LSTMs or not.  If we do NOT, flatten now
+                        future_lstm = False
+                        for look_ahead_layer in range(1, int(configDict['Layers']) + 1):
+                            if configDict['Layer' + str(look_ahead_layer)]['LayerType'] == 'LSTM':
+                                 future_lstm = True
+                        if future_lstm == False:
+                            self.flattened = True
+                            self.model.add(Flatten())
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                        else:
+                            # Add without flattening
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                    else:
+                        # Add without flattening
+                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
                elif current_layer['LayerType'] == 'LSTM':
                     if current_layer['ReturnSequences'] == 'True':
                         return_sequences = True
                     else:
                         return_sequences = False
                         self.flattened = True       # LSTM without return sequences effectively flattens
-                    self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))
+                    self.model.add(LSTM(2 ** int(current_layer['Nodes']),  return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))              # Removed input_shape=(ModelConfig.num_samples, 4),  # that should only be used in the first layer
                     # Not yet using the OverFitting Helper Variable - will consider that later.
                else:
                     self.error = 'Unknown Layer Type on Layer # ' + str(layer) + ' ' + str(current_layer)
