@@ -165,11 +165,18 @@ if __name__ == "__main__":
         model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model_description + ModelConfig.opt
         model.myf.default_optimizer = ModelConfig.opt
         model.model.summary()
-        model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
+        try:
+            model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
                                     model.model,
                                     model.myf.model_description)
 
-        model.myf.finish_update_row(ModelConfig.datafile, modelDict)
+            model.myf.finish_update_row(ModelConfig.datafile, modelDict)
+        except:
+            print("Oops!", sys.exc_info()[0], "occured.")
+            print('Occurred with configDict:')
+            print(modelDict)
+            modelDict['ErrorDetails'] = sys.exc_info()[0]
+            model.myf.finish_update_row(ModelConfig.datafile, modelDict, False)
 
     start_layer = 1             #  Same as no sequences if only 1 layer
     start_layer1_nodes = 7
