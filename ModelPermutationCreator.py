@@ -13,6 +13,20 @@ from keras import backend as K
 #
 list_all_layer_types = []
 
+def has_NonCompliantLSTM(modelDict):
+    """
+        Checks if we have non compliant LSTM layers, allowing them to be removed
+        This includes an LSTM with False Return sequences followed by any other LSTM
+    :param modelDict:
+    :return: True of False
+    """
+    for start_layer in range(1, modelDict['Layers']+1):
+        if modelDict['Layer' + str(start_layer)]['LayerType'] == 'LSTM' and modelDict['Layer' + str(start_layer)]['ReturnSequences'] == False:
+            # We have an LSTM with False Return Sequences - check if we have any more LSTMs
+            for check_layer in range( start_layer+1, modelDict['Layers']):
+                if modelDict['Layer' + str(check_layer)]['LayerType'] == 'LSTM':
+                    return True
+
 for layer_type in ('Dense', 'LSTM') :
     if layer_type == 'Dense' :
         max_nodes  = 12
@@ -42,7 +56,7 @@ with open('models_to_test2.csv', 'w', newline='') as csvfile:
     #fieldnames = ['LayerType', 'Nodes', 'OverFittingHelp', 'ReturnSequences', 'Started', 'Finished']
     fieldnames = ['Layers', 'Layer1', 'Layer2', 'Layer3', 'Layer4', 'Layer5', 'Started', 'Finished', 'model_best_acc',
                       'model_best_loss', 'model_best_val_acc', 'model_best_val_loss',
-                      'model_best_combined_ave_loss', 'ErrorDetails']
+                      'model_best_combined_ave_loss', 'TotalNodes','ErrorDetails']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
     writer.writeheader()
@@ -81,6 +95,7 @@ with open('models_to_test2.csv', 'w', newline='') as csvfile:
                         # New Rule:  Don't allow a later layer to have any more than 1 more node than the previous layer
                         elif (layers ==5 and int(layer5['Nodes']) > int(layer4['Nodes'])+1) or (layers >= 4 and int(layer4['Nodes']) > int(layer3['Nodes'])+1) or (layers>=3 and int(layer3['Nodes']) > int(layer2['Nodes'])+1) or (layers>= 2 and int(layer2['Nodes']) > int(layer1['Nodes'])+1) :
                             pass
+                        # New Rule:  Don't allow any LSTM to occur AFTER an LSTM that has return_sequences of FALSE
                         else:
                             configDict = {'Layers': layers, 'Layer1': layer1, 'Layer2' : layer2, 'Layer3': layer3, 'Layer4' : layer4, 'Layer5': layer5, "Started": False, 'Finished': False, 'model_best_acc': '',
                                           'model_best_loss': '', 'model_best_val_acc': '', 'model_best_val_loss': '',
@@ -88,37 +103,46 @@ with open('models_to_test2.csv', 'w', newline='') as csvfile:
                             #writer.writerow(configDict)
 
         #                    model = MyLSTMModelV2.MyLSTMModelV2(configDict)
+                            if has_NonCompliantLSTM(configDict):
+                                # Filter out models where we have False ReturnSequences for LSTM followed by other LSTM - this just doesn't work (or make sense!)
+                                pass
+                            else:
+                                try:
+               #                     model.model.summary()
+                                    # Need more on this....
+                                    model_description = str(layers) + 'Layers_' + configDict['Layer1']['LayerType']+str(configDict['Layer1']['Nodes'])
+                                    # Count the total nodes - will be useful for later (maybe).  E.g. use to decide whether to use CPU or GPU
+                                    total_nodes = 2 ** int(configDict['Layer1']['Nodes'])
+                                    if layers >= 2:
+                                        model_description += '_' + configDict['Layer2']['LayerType']+str(configDict['Layer2']['Nodes'])
+                                        total_nodes += 2 ** int(configDict['Layer2']['Nodes'])
+                                    if layers >= 3:
+                                        model_description += '_' + configDict['Layer3']['LayerType']+str(configDict['Layer3']['Nodes'])
+                                        total_nodes += 2 ** int(configDict['Layer3']['Nodes'])
+                                    if layers >= 4:
+                                        model_description += '_' + configDict['Layer4']['LayerType']+str(configDict['Layer4']['Nodes'])
+                                        total_nodes += 2 ** int(configDict['Layer4']['Nodes'])
+                                    if layers >= 5:
+                                        model_description += '_' + configDict['Layer5']['LayerType']+str(configDict['Layer5']['Nodes'])
+                                        total_nodes += 2 ** int(configDict['Layer5']['Nodes'])
+                  #                  model.myf.model_description = 'LSTMMModelV2 ' + ModelV2Config.buy_or_sell + model_description + ModelV2Config.opt
+                  #                  model.myf.default_optimizer = ModelV2Config.opt
+                   #                 model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
+                     #                                            model.model,
+                    #                                             model.myf.model_description)
+                     #               configDict['model_best_loss'] = model.myf.model_best_loss
+                    #                configDict['model_best_acc'] = model.myf.model_best_acc
+                   #                 configDict['model_best_combined_ave_loss'] = model.myf.model_best_combined_ave_loss
+                   #                 configDict['model_best_val_acc'] = model.myf.model_best_val_acc
+                   #                 configDict['model_best_val_loss'] = model.myf.model_best_val_loss
+                                    configDict['TotalNodes'] = total_nodes
+                                    writer.writerow(configDict)
 
-                            try:
-           #                     model.model.summary()
-                                # Need more on this....
-                                model_description = str(layers) + 'Layers_' + configDict['Layer1']['LayerType']+str(configDict['Layer1']['Nodes'])
-                                if layers >= 2:
-                                    model_description += '_' + configDict['Layer2']['LayerType']+str(configDict['Layer2']['Nodes'])
-                                if layers >= 3:
-                                    model_description += '_' + configDict['Layer3']['LayerType']+str(configDict['Layer3']['Nodes'])
-                                if layers >= 4:
-                                    model_description += '_' + configDict['Layer4']['LayerType']+str(configDict['Layer4']['Nodes'])
-                                if layers >= 5:
-                                    model_description += '_' + configDict['Layer5']['LayerType']+str(configDict['Layer5']['Nodes'])
-
-              #                  model.myf.model_description = 'LSTMMModelV2 ' + ModelV2Config.buy_or_sell + model_description + ModelV2Config.opt
-              #                  model.myf.default_optimizer = ModelV2Config.opt
-               #                 model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
-                 #                                            model.model,
-                #                                             model.myf.model_description)
-                 #               configDict['model_best_loss'] = model.myf.model_best_loss
-                #                configDict['model_best_acc'] = model.myf.model_best_acc
-               #                 configDict['model_best_combined_ave_loss'] = model.myf.model_best_combined_ave_loss
-               #                 configDict['model_best_val_acc'] = model.myf.model_best_val_acc
-               #                 configDict['model_best_val_loss'] = model.myf.model_best_val_loss
-                                writer.writerow(configDict)
-
-                            except:
-                                print("Oops!", sys.exc_info()[0], "occured.")
-                                print('Occurred with configDict:')
-                                print(configDict)
-                                configDict['ErrorDetails'] = sys.exc_info()[0]
-                                writer.writerow(configDict)
+                                except:
+                                    print("Oops!", sys.exc_info()[0], "occured.")
+                                    print('Occurred with configDict:')
+                                    print(configDict)
+                                    configDict['ErrorDetails'] = sys.exc_info()[0]
+                                    writer.writerow(configDict)
 
                             K.clear_session()

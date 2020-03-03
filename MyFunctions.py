@@ -718,7 +718,7 @@ def read_row (datafile):
         fieldnames = ['Layers', 'Layer1', 'Layer2', 'Layer3', 'Layer4', 'Layer5', 'Started', 'Finished',
                       'model_best_acc',
                       'model_best_loss', 'model_best_val_acc', 'model_best_val_loss',
-                      'model_best_combined_ave_loss', 'ErrorDetails']
+                      'model_best_combined_ave_loss', 'ErrorDetails', 'TotalNodes']
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
 
         writer.writeheader()
@@ -777,7 +777,7 @@ def finish_update_row (datafile, row_to_update, success=True):
         fieldnames = ['Layers', 'Layer1', 'Layer2', 'Layer3', 'Layer4', 'Layer5', 'Started', 'Finished',
                       'model_best_acc',
                       'model_best_loss', 'model_best_val_acc', 'model_best_val_loss',
-                      'model_best_combined_ave_loss', 'ErrorDetails']
+                      'model_best_combined_ave_loss', 'ErrorDetails', 'TotalNodes']
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
 
         writer.writeheader()
