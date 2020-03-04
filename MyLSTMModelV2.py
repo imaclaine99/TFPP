@@ -6,6 +6,7 @@ from keras.regularizers import L1L2
 import ModelV2Config as ModelConfig
 import csv
 import MyFunctions
+import sys
 
 # Should move this to MyFunctions later
 from keras.backend.tensorflow_backend import set_session
@@ -13,11 +14,6 @@ import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
-#config = tf.config
-#config.gpu_options.allow_growth = True
-#session = tf.Session(config=config)
-#set_session(session)
 
 
 # Enhancesments over Model V1b (WIP):
