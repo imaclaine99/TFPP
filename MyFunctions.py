@@ -763,12 +763,12 @@ def finish_update_row (datafile, row_to_update, success=True):
     os.rename(datafile, tempfilename)
 
     if success == False:
-        row['Finished'] = False
-        row['model_best_acc'] = 0
-        row['model_best_loss'] = 'N/A'
-        row['model_best_val_acc'] = 0
-        row['model_best_val_loss'] = 'N/A'
-        row['model_best_combined_ave_loss'] = 'N/A'
+        row_to_update['Finished'] = False
+        row_to_update['model_best_acc'] = 0
+        row_to_update['model_best_loss'] = 'N/A'
+        row_to_update['model_best_val_acc'] = 0
+        row_to_update['model_best_val_loss'] = 'N/A'
+        row_to_update['model_best_combined_ave_loss'] = 'N/A'
 
     # create a temporary dictionary from the input file
     with open(tempfilename, mode='r') as infile:

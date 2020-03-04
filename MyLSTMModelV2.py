@@ -15,6 +15,23 @@ physical_devices = tf.config.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# Disable GPU
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  # Disable all GPUS
+  tf.config.set_visible_devices([], 'GPU')
+  visible_devices = tf.config.get_visible_devices()
+  for device in visible_devices:
+    assert device.device_type != 'GPU'
+except:
+  # Invalid device or cannot modify virtual devices once initialized.
+  pass
+
+#config = tf.config
+#config.gpu_options.allow_growth = True
+#session = tf.Session(config=config)
+#set_session(session)
+
 
 # Enhancesments over Model V1b (WIP):
 # 1. Move config outside of this file.  Makes it easier to maintain code vs config
@@ -144,24 +161,24 @@ if __name__ == "__main__":
         if modelDict == None:
             break;
 
-        model = MyLSTMModelV2(modelDict)
-
-        layers = int(modelDict['Layers'])
-        model_description = str(layers) + 'Layers_' + modelDict['Layer1']['LayerType'] + str(
-            modelDict['Layer1']['Nodes'])
-        if layers >= 2:
-            model_description += '_' + modelDict['Layer2']['LayerType'] + str(modelDict['Layer2']['Nodes'])
-        if layers >= 3:
-            model_description += '_' + modelDict['Layer3']['LayerType'] + str(modelDict['Layer3']['Nodes'])
-        if layers >= 4:
-            model_description += '_' + modelDict['Layer4']['LayerType'] + str(modelDict['Layer4']['Nodes'])
-        if layers >= 5:
-            model_description += '_' + modelDict['Layer5']['LayerType'] + str(modelDict['Layer5']['Nodes'])
-
-        model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model_description + ModelConfig.opt
-        model.myf.default_optimizer = ModelConfig.opt
-        model.model.summary()
         try:
+            model = MyLSTMModelV2(modelDict)
+
+            layers = int(modelDict['Layers'])
+            model_description = str(layers) + 'Layers_' + modelDict['Layer1']['LayerType'] + str(
+                modelDict['Layer1']['Nodes'])
+            if layers >= 2:
+                model_description += '_' + modelDict['Layer2']['LayerType'] + str(modelDict['Layer2']['Nodes'])
+            if layers >= 3:
+                model_description += '_' + modelDict['Layer3']['LayerType'] + str(modelDict['Layer3']['Nodes'])
+            if layers >= 4:
+                model_description += '_' + modelDict['Layer4']['LayerType'] + str(modelDict['Layer4']['Nodes'])
+            if layers >= 5:
+                model_description += '_' + modelDict['Layer5']['LayerType'] + str(modelDict['Layer5']['Nodes'])
+
+            model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model_description + ModelConfig.opt
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
             model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
                                     model.model,
                                     model.myf.model_description)
@@ -172,7 +189,7 @@ if __name__ == "__main__":
             print('Occurred with configDict:')
             print(modelDict)
             modelDict['ErrorDetails'] = sys.exc_info()[0]
-            model.myf.finish_update_row(ModelConfig.datafile, modelDict, False)
+            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
 
     start_layer = 1             #  Same as no sequences if only 1 layer
     start_layer1_nodes = 7
