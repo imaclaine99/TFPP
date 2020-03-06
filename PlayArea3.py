@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.core import Flatten
 from keras.layers.core import Dropout
+from keras.layers import AlphaDropout
 from keras.layers import LSTM
 from keras.initializers import RandomNormal
 from keras.optimizers import SGD
@@ -17,6 +18,7 @@ import argparse
 from learningratefinder import LearningRateFinder
 import math
 import MyFunctions as myf
+tf.keras.initializers.lecun_normal()
 
 num_samples = 250
 myf.EPOCHS = 100
@@ -24,6 +26,13 @@ myf.model_description = 'PlayArea3 Test - 3 Layer 1 node Dense - RemoveRegularis
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
+
+# define your custom callback for prediction
+class PredictionCallback(tf.keras.callbacks.Callback):
+  def on_epoch_end(self, epoch, logs={}):
+    y_pred = self.model.predict(self.validation_data[0])
+    print('prediction: {} at epoch: {}'.format(y_pred, epoch))
 
 #### PlayPenCode
 #myf.parse_file("DAX4ML.csv")
@@ -139,9 +148,14 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dense(1))
 #    model_new.add(Dense(1))
 
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
+    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
+    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
+    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
+
+#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
+#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
+#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
+
 
     #    model_new.add(Dense(52, activation="relu", kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
     #model_new.add(Dropout(.2))
@@ -150,6 +164,10 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dropout(.2))
 #    model_new.add(Dense(1))       # remove softmax, given we have multi-value output
     model_new.summary()
-    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "PlayPen3_3Layer1NodeDenseNoRegularizerActivtation" + activation + "RandNormInit_Batch" + str(i))
+    myf.callbacks=[PredictionCallback()]
+    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "PlayPen3_3Layer1NodeDenseL2RegularizerActivtation" + activation + "RandomNormInit_Batch" + str(i))
 #    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, "Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
+    # Let's print some model stuff out - who knows what it will show?!
+    for layer in model_new.layers: print(layer.get_config(), layer.get_weights())
+
     del model_new
