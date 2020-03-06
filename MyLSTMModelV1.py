@@ -5,7 +5,7 @@ from keras.layers import Flatten, Dense, Dropout, LSTM
 num_samples = 250
 epochs = 100
 batch_size = 8
-buy_or_sell = 'Sell'
+buy_or_sell = 'Buy'
 
 class MyLSTMModelV1 (object):
     import MyFunctions as myf

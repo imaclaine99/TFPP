@@ -18,7 +18,6 @@ import argparse
 from learningratefinder import LearningRateFinder
 import math
 import MyFunctions as myf
-tf.keras.initializers.lecun_normal()
 
 num_samples = 250
 myf.EPOCHS = 100
@@ -37,6 +36,19 @@ class PredictionCallback(tf.keras.callbacks.Callback):
 #### PlayPenCode
 #myf.parse_file("DAX4ML.csv")
 #myf.parse_file("^GDAXI.csv")
+
+# Disable GPU
+if False == True:
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+      # Disable all GPUS
+      tf.config.set_visible_devices([], 'GPU')
+      visible_devices = tf.config.get_visible_devices()
+      for device in visible_devices:
+        assert device.device_type != 'GPU'
+    except:
+      # Invalid device or cannot modify virtual devices once initialized.
+      pass
 
 
 model = Sequential()
@@ -148,14 +160,15 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dense(1))
 #    model_new.add(Dense(1))
 
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
-    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
+#    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
+#    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
+#    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
+#    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
 
-#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
-#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
-#    model_new.add(Dense(1, activation=activation, kernel_initializer="lecun_normal"))
-
+    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
+    model_new.add(Dense(512, activation=activation, kernel_initializer="lecun_normal"))
+    model_new.add(Dense(256, activation=activation, kernel_initializer="lecun_normal"))
+    model_new.add(Dense(1, activation=activation))
 
     #    model_new.add(Dense(52, activation="relu", kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
     #model_new.add(Dropout(.2))

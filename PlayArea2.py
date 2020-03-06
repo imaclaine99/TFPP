@@ -19,15 +19,28 @@ import math
 import MyFunctions as myf
 
 num_samples = 250
-myf.EPOCHS = 5
+myf.EPOCHS = 50
 myf.model_description = 'PlayArea2 Test - Removed second dropout, 512 then 256 nodes'
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 #### PlayPenCode
-myf.parse_file("DAX4ML.csv")
-myf.parse_file("^GDAXI.csv")
+#myf.parse_file("DAX4ML.csv")
+#myf.parse_file("^GDAXI.csv")
+
+# Disable GPU
+if True == True:
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+      # Disable all GPUS
+      tf.config.set_visible_devices([], 'GPU')
+      visible_devices = tf.config.get_visible_devices()
+      for device in visible_devices:
+        assert device.device_type != 'GPU'
+    except:
+      # Invalid device or cannot modify virtual devices once initialized.
+      pass
 
 
 model = Sequential()
@@ -84,7 +97,7 @@ BATCH_SIZE = 16
 
 # LRFinder code
 if LRR == 1:
-    (trainX, testX, trainY, testY) = myf.parse_data_to_trainXY(".\parsed_data\^GDAXI.csv", "SellWeightingRule")
+    (trainX, testX, trainY, testY) = myf.parse_data_to_trainXY(".\parsed_data\^GDAXI.csv", "BuyWeightingRule")
 
     model.compile(loss='mean_squared_error', optimizer='Nadam', metrics=["accuracy"])
     print("[INFO] finding learning rate...")
@@ -136,6 +149,6 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dense(26, activation="relu", kernel_regularizer=regularizers.l2(0.01)))
 #    model_new.add(Dropout(.2))
     model_new.add(Dense(1))       # remove softmax, given we have multi-value output
-#    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch" + str(i))
-    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, "Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
+    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch" + str(i))
+#    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, "Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
     del model_new

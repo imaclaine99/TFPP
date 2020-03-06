@@ -16,16 +16,17 @@ if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 # Disable GPU
-physical_devices = tf.config.list_physical_devices('GPU')
-try:
-  # Disable all GPUS
-  tf.config.set_visible_devices([], 'GPU')
-  visible_devices = tf.config.get_visible_devices()
-  for device in visible_devices:
-    assert device.device_type != 'GPU'
-except:
-  # Invalid device or cannot modify virtual devices once initialized.
-  pass
+if ModelConfig.disableGPU == True:
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+      # Disable all GPUS
+      tf.config.set_visible_devices([], 'GPU')
+      visible_devices = tf.config.get_visible_devices()
+      for device in visible_devices:
+        assert device.device_type != 'GPU'
+    except:
+      # Invalid device or cannot modify virtual devices once initialized.
+      pass
 
 #config = tf.config
 #config.gpu_options.allow_growth = True
@@ -86,7 +87,7 @@ class MyLSTMModelV2 (object):
                 # 1 Layer Dense - Flatten
                 self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
                 self.flattened = True
-                self.model.add(Dense(2 ** int(current_layer['Nodes'])))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), kernel_initializer=ModelConfig.dense_kernel_initialiser))
             else:
                 if self.flattened == False:
                     # Check if we have any future LSTMs or not.  If we do NOT, flatten now
@@ -97,7 +98,7 @@ class MyLSTMModelV2 (object):
                 if future_lstm == False:
                     self.flattened = True
                     self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
-                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu", input_shape=(ModelConfig.num_samples, 4)))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser))
         elif current_layer['LayerType'] == 'LSTM':
             if current_layer['ReturnSequences'] == 'True':
                 return_sequences = True
@@ -133,10 +134,10 @@ class MyLSTMModelV2 (object):
                         if future_lstm == False:
                             self.flattened = True
                             self.model.add(Flatten())
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"), kernel_initializer=ModelConfig.dense_kernel_initialiser)
                         else:
                             # Add without flattening
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"), kernel_initializer=ModelConfig.dense_kernel_initialiser)
                     else:
                         # Add without flattening
                         self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
