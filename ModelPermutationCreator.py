@@ -26,7 +26,7 @@ def has_NonCompliantLSTM(modelDict):
             for check_layer in range( start_layer+1, modelDict['Layers']+1):            # Loop from next to last
                 if modelDict['Layer' + str(check_layer)]['LayerType'] == 'LSTM':
                     return True
-        return False
+    return False
 
 for layer_type in ('Dense', 'LSTM') :
     if layer_type == 'Dense' :

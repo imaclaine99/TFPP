@@ -708,6 +708,7 @@ def read_row (datafile):
         os.remove(tempfilename)  # delete any existing temp file
     except OSError:
         pass
+
     os.rename(datafile, tempfilename)
 
     # create a temporary dictionary from the input file
