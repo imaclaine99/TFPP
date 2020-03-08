@@ -137,7 +137,7 @@ class MyLSTMModelV2 (object):
                     if layer == int(configDict['Layers']) and self.flattened == False:
                         self.model.add(Flatten())
                         self.flattened = True
-                    if layer <= int(configDict['Layers']):
+                    if layer < int(configDict['Layers']):
                         activation = 'selu'
                     else:
                         activation = None       # Linear activation on last layer - helps stop dead nodes
