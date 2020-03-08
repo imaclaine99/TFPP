@@ -103,7 +103,7 @@ class MyLSTMModelV2 (object):
                 if self.flattened == False:
                     # Check if we have any future LSTMs or not.  If we do NOT, flatten now
                     future_lstm = False
-                    for look_ahead_layer in range(1, int(configDict['Layers'])+1):
+                    for look_ahead_layer in range(2, int(configDict['Layers'])+1):
                         if configDict['Layer' + str(look_ahead_layer)]['LayerType'] == 'LSTM':
                             future_lstm = True
                 if future_lstm == False:
