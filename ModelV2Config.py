@@ -15,6 +15,12 @@ opt = 'Adamax'
 datafile = r'.\models_to_test2.csv'
 dense_kernel_initialiser = RandomNormal(mean=0, stddev=0.1, seed=None)
 #dense_kernel_initialiser = 'glorot_uniform'
+db_host = '127.0.0.1'
+db_username = 'tfpp'
+db_pwd = 'tfpp'
+
+
+
 gpu = False
 if (gpu):
     db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU

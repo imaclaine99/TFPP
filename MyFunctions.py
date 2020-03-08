@@ -57,7 +57,9 @@ callbacks = []          # This feels cludgy, but prevents me having to pass ever
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
                         # Note:  Once set (e.g. SGD+CLR) CLR can not currently be removed, as the Callback remains.  Need to review this in the future.
                         # Not a big prority, as CLR is not being used...
-
+db_host = '127.0.0.1'
+db_username = 'tfpp'
+db_pwd = 'tfpp'
 
 def parsefile(filename, output_column_name, strip_first_row=False):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -701,7 +703,7 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
 
 def read_from_from_db(sort='None'):     # Sort can be None, Random, NodesAsc, NodesDesc
     cnx = mysql.connector.connect(user='tfpp', password='tfpp',
-                                  host='127.0.0.1',
+                                  host=db_host,
                                   database='tfpp')
 
     cursor = cnx.cursor(dictionary=True)
