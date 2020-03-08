@@ -22,6 +22,7 @@ import datetime
 import math
 from learningratefinder import LearningRateFinder
 import csv          # I use this for writing csv logs
+import mysql.connector
 
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
@@ -51,10 +52,12 @@ default_optimizer = 'Nadam' # Not used if explicity set when called in compile a
                             # SGD+NM  (Nesterov Momentum), AdamDelta (?)
                             # Do I also want to specific optimizer tunables - e.g. opt_lr, opt_??
 output_images_path = r'.\\output_images\\'
+read_backwards  = False     # Default is to read from start to end.
 callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
                         # Note:  Once set (e.g. SGD+CLR) CLR can not currently be removed, as the Callback remains.  Need to review this in the future.
                         # Not a big prority, as CLR is not being used...
+
 
 def parsefile(filename, output_column_name, strip_first_row=False):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -696,6 +699,106 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         else:
             return 0
 
+def read_from_from_db(sort='None'):     # Sort can be None, Random, NodesAsc, NodesDesc
+    cnx = mysql.connector.connect(user='tfpp', password='tfpp',
+                                  host='127.0.0.1',
+                                  database='tfpp')
+
+    cursor = cnx.cursor(dictionary=True)
+
+    if sort == 'None':
+        query = ("SELECT * FROM testmodels "
+                 "where started <> 'True' " )
+    elif sort == 'NodesAsc':
+        query = ("SELECT * FROM testmodels "
+                 "where started <> 'True' "
+                 "order by TotalNodes asc")
+    elif sort == 'NodesDesc':
+        query = ("SELECT * FROM testmodels "
+                 "where started <> 'True' "
+                 "order by TotalNodes desc")
+    elif sort == 'Random':
+        query = ("SELECT * FROM testmodels "
+                 "where started <> 'True' "
+                 "order by RAND()")
+
+    query = query + " LIMIT 1"
+    cursor.execute(query)
+    rowDict = cursor.fetchone()
+    print(rowDict)
+
+    # Now update it to started
+    uniqueID = rowDict['unique_id']
+    cursor.execute("""
+        UPDATE testmodels SET Started='True'
+        WHERE unique_id = %s
+    """, (uniqueID,))
+
+    # for i in (cursor): print (i)
+    cnx.commit()
+    cnx.close()
+
+    # Convert strings to Dicts
+    for layer in range(1, rowDict['Layers']+1):
+        rowDict['Layer' + str(layer)] = eval(rowDict['Layer' + str(layer)])
+
+    return rowDict
+
+def db_update_row (rowDict, success=True):
+    global model_best_acc, model_best_combined_ave_loss, model_best_loss, model_best_val_acc, model_best_val_loss
+
+    if success == False:
+        rowDict['Finished'] = False
+        model_best_acc = 0
+        model_best_loss = 'N/A'
+        model_best_val_acc = 0
+        model_best_val_loss = 'N/A'
+        model_best_combined_ave_loss = 'N/A'
+
+    cnx = mysql.connector.connect(user='tfpp', password='tfpp',
+                                  host='127.0.0.1',
+                                  database='tfpp')
+
+    uniqueID = rowDict['unique_id']
+
+    cursor = cnx.cursor(dictionary=True)
+
+    query = ("SELECT 1")
+    cursor.execute(query)
+    cursor.fetchone()
+
+    cursor.execute("""
+        UPDATE testmodels SET Started='True'
+        WHERE unique_id = %s
+    """, (uniqueID,))
+
+    cursor.execute("""
+        UPDATE testmodels SET Finished='True'
+        where unique_id = %s
+    """, (uniqueID,))
+
+
+    query = ("UPDATE testmodels SET Finished = %s "
+                 "WHERE unique_id = %s")
+    cursor.execute(query, ('True', uniqueID))
+
+
+    query = ("UPDATE testmodels SET Finished = %s, "
+                 "model_best_acc = %s, "
+                 "model_best_loss = %s, "
+                 "model_best_val_acc = %s, "
+                 "model_best_val_loss = %s, "
+                 "model_best_combined_ave_loss = %s "
+                 "WHERE unique_id = %s")
+
+    cursor.execute(query, ('True', float(model_best_acc),
+                  float(model_best_loss),
+                  float(model_best_val_acc),
+                  float(model_best_val_loss),
+                  float(model_best_combined_ave_loss),
+                  uniqueID))
+    cnx.commit()
+    cnx.close()
 
 def read_row (datafile):
     """
@@ -725,6 +828,9 @@ def read_row (datafile):
         writer.writeheader()
 
         return_row = None           # Default - If None, we're done or broken
+
+ #       if read_backwards:
+ #           reader = reversed(reader)
 
         for row in reader:
             ## Any Updates??

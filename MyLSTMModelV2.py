@@ -57,6 +57,9 @@ class MyLSTMModelV2 (object):
         self.myf.batch_size = ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
+#        self.myf.read_backwards = ModelConfig.read_backwards
+#        self.db_read_sort = ModelConfig.db_read_sort
+#        MyFunctions.read_backwards = ModelConfig.read_backwards     # This is messy....
         self.myf.dupe_vals = (1,2,2,5,10)       # Can't hurt to have 2 in twice can it?
         self.myf.default_optimizer = 'SGD+CLR'
         self.flattened = False      # Check if we've flattened, and ensure we do by the last layer
@@ -87,7 +90,7 @@ class MyLSTMModelV2 (object):
                 # 1 Layer Dense - Flatten
                 self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
                 self.flattened = True
-                self.model.add(Dense(2 ** int(current_layer['Nodes']), kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_initializer=ModelConfig.dense_kernel_initialiser))
             else:
                 if self.flattened == False:
                     # Check if we have any future LSTMs or not.  If we do NOT, flatten now
@@ -98,12 +101,13 @@ class MyLSTMModelV2 (object):
                 if future_lstm == False:
                     self.flattened = True
                     self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
-                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser))
         elif current_layer['LayerType'] == 'LSTM':
-            if current_layer['ReturnSequences'] == 'True':
+            if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                 return_sequences = True
             else:
                 return_sequences = False
+                self.flattened = True           # Return sequences of False implies this - prevent adding another FLatten
             self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))
             # Not yet using the OverFitting Helper Variable - will consider that later.
         else:
@@ -125,6 +129,10 @@ class MyLSTMModelV2 (object):
                     if layer == int(configDict['Layers']) and self.flattened == False:
                         self.model.add(Flatten())
                         self.flattened = True
+                    if layer <= int(configDict['Layers']):
+                        activation = 'selu'
+                    else:
+                        activation = None       # Linear activation on last layer - helps stop dead nodes
                     if self.flattened == False:
                         # Check if we have any future LSTMs or not.  If we do NOT, flatten now
                         future_lstm = False
@@ -134,13 +142,13 @@ class MyLSTMModelV2 (object):
                         if future_lstm == False:
                             self.flattened = True
                             self.model.add(Flatten())
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"), kernel_initializer=ModelConfig.dense_kernel_initialiser)
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser))
                         else:
                             # Add without flattening
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"), kernel_initializer=ModelConfig.dense_kernel_initialiser)
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser))
                     else:
                         # Add without flattening
-                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="relu"))
+                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu"))
                elif current_layer['LayerType'] == 'LSTM':
                     if current_layer['ReturnSequences'] == 'True':
                         return_sequences = True
@@ -151,14 +159,19 @@ class MyLSTMModelV2 (object):
                     # Not yet using the OverFitting Helper Variable - will consider that later.
                else:
                     self.error = 'Unknown Layer Type on Layer # ' + str(layer) + ' ' + str(current_layer)
-
+       # self.model.add(Dense(1))               # add a one node dense, no activation - may help learning by having this on last node?
+       # Check if last layer and LSTM and Return Sequences is true - if so, flatten.  Could argue that this is not needed, as would be picked up by a config that ends in Dense anyway, so is an illegal permutation...
+        last_layer = 'Layer' + str(configDict['Layers'])
+        if configDict[last_layer]['LayerType'] == 'LSTM' and (configDict[last_layer]['ReturnSequences'] == 'True' or configDict[last_layer]['ReturnSequences'] == True  ) and self.flattened == False:
+            self.model.add(Flatten())
 
 if __name__ == "__main__":
     import os
 
 
     while True:
-        modelDict = MyFunctions.read_row(ModelConfig.datafile)
+        #modelDict = MyFunctions.read_row(ModelConfig.datafile)
+        modelDict = MyFunctions.read_from_from_db(ModelConfig.db_read_sort)
         if modelDict == None:
             break;
 
@@ -184,13 +197,16 @@ if __name__ == "__main__":
                                     model.model,
                                     model.myf.model_description)
 
-            model.myf.finish_update_row(ModelConfig.datafile, modelDict)
+            #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
+            MyFunctions.db_update_row(modelDict)
         except:
             print("Oops!", sys.exc_info()[0], "occured.")
             print('Occurred with configDict:')
             print(modelDict)
             modelDict['ErrorDetails'] = sys.exc_info()[0]
-            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
+#            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
+            MyFunctions.db_update_row(modelDict, False)
+
 
     start_layer = 1             #  Same as no sequences if only 1 layer
     start_layer1_nodes = 7

@@ -13,6 +13,12 @@ is_dupe_data = False #True   # Experimental
 bias_regulariser = L1L2(l1= 0, l2=0)
 opt = 'Adamax'
 datafile = r'.\models_to_test2.csv'
-disableGPU = False
 dense_kernel_initialiser = RandomNormal(mean=0, stddev=0.1, seed=None)
 #dense_kernel_initialiser = 'glorot_uniform'
+gpu = False
+if (gpu):
+    db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
+    disableGPU = False
+else:
+    db_read_sort = 'NodesAsc'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
+    disableGPU = True

@@ -20,7 +20,7 @@ import math
 import MyFunctions as myf
 
 num_samples = 250
-myf.EPOCHS = 100
+myf.EPOCHS = 200
 myf.model_description = 'PlayArea3 Test - 3 Layer 1 node Dense - RemoveRegulariserDefaultActivationDefaultInitializer'
 
 import os
@@ -38,7 +38,7 @@ class PredictionCallback(tf.keras.callbacks.Callback):
 #myf.parse_file("^GDAXI.csv")
 
 # Disable GPU
-if False == True:
+if True == True:
     physical_devices = tf.config.list_physical_devices('GPU')
     try:
       # Disable all GPUS
@@ -142,7 +142,7 @@ if LRR == 1:
 activation = 'selu'          ## softmax, softplus, elu, tanh, selu, etctanh
 
 model_arr = []
-for i in range (1, 32, 2) :
+for i in range (16, 32, 4) :
 
     print (i)
     myf.batch_size = i
@@ -165,10 +165,10 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
 #    model_new.add(Dense(1, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
 
-    model_new.add(Dense(1024, activation=activation, kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None)))
-    model_new.add(Dense(512, activation=activation, kernel_initializer="lecun_normal"))
-    model_new.add(Dense(256, activation=activation, kernel_initializer="lecun_normal"))
-    model_new.add(Dense(1, activation=activation))
+    model_new.add(Dense(1024, activation=activation, kernel_initializer="lecun_normal"))
+    model_new.add(Dense(1024, activation=activation, kernel_initializer="lecun_normal"))
+    model_new.add(Dense(1024, activation=activation, kernel_initializer="lecun_normal"))
+    model_new.add(Dense(1))          # No activation - may make training better?
 
     #    model_new.add(Dense(52, activation="relu", kernel_initializer=RandomNormal(mean=0, stddev=0.1, seed=None), kernel_regularizer=regularizers.l2(0.01 )))
     #model_new.add(Dropout(.2))
@@ -178,7 +178,7 @@ for i in range (1, 32, 2) :
 #    model_new.add(Dense(1))       # remove softmax, given we have multi-value output
     model_new.summary()
     myf.callbacks=[PredictionCallback()]
-    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "PlayPen3_3Layer1NodeDenseL2RegularizerActivtation" + activation + "RandomNormInit_Batch" + str(i))
+    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model_new, "PlayPen3_3Layer1024NodeDenseNoRegularizerActivtation" + activation + "RandomNormInit_Batch" + str(i))
 #    myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model_new, "Remove2ndDropout\Model1_Relu_Percent_L2_MoreData_25Dropout_RandomNormal_Batch_NewSellRule" + str(i))
     # Let's print some model stuff out - who knows what it will show?!
     for layer in model_new.layers: print(layer.get_config(), layer.get_weights())

@@ -26,6 +26,10 @@ def has_NonCompliantLSTM(modelDict):
             for check_layer in range( start_layer+1, modelDict['Layers']+1):            # Loop from next to last
                 if modelDict['Layer' + str(check_layer)]['LayerType'] == 'LSTM':
                     return True
+    # Check for Return Sequences False in last layer - that is invalid
+    last_layer = str(modelDict['Layers'])
+    if modelDict['Layer' + last_layer]['LayerType'] == 'LSTM' and (modelDict['Layer' + last_layer]['ReturnSequences'] == True or modelDict['Layer' + last_layer]['ReturnSequences'] == 'True'):
+        return True
     return False
 
 for layer_type in ('Dense', 'LSTM') :
@@ -71,7 +75,7 @@ with open('models_to_test2.csv', 'w', newline='') as csvfile:
         for layer2 in [''] + list_all_layer_types:
             for layer3 in [''] + list_all_layer_types:
                 for layer4 in [''] + list_all_layer_types:
-                    for layer5 in [''] : #+ list_all_layer_types:
+                    for layer5 in [''] + list_all_layer_types:
                         if layer2 == '':
                             layers = 1
                         elif layer3 == '':
