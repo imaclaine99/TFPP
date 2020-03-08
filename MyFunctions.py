@@ -23,6 +23,7 @@ import math
 from learningratefinder import LearningRateFinder
 import csv          # I use this for writing csv logs
 import mysql.connector
+import time
 
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
@@ -757,10 +758,16 @@ def db_update_row (rowDict, success=True):
         model_best_val_loss = 9999999
         model_best_combined_ave_loss = 9999999
 
-    cnx = mysql.connector.connect(user='tfpp', password='tfpp',
-                                  host=db_host,
-                                  database='tfpp')
-
+    for db_connect_loop in range(1,24*12):
+        try:
+            cnx = mysql.connector.connect(user='tfpp', password='tfpp',
+                                          host=db_host,
+                                          database='tfpp')
+            break
+        except:
+            print ('[INFO: DB Connect Error on try number ' + str(db_connect_loop))
+            time.sleep (5*60)
+            
     uniqueID = rowDict['unique_id']
 
     cursor = cnx.cursor(dictionary=True)
