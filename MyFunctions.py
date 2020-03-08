@@ -752,13 +752,13 @@ def db_update_row (rowDict, success=True):
     if success == False:
         rowDict['Finished'] = False
         model_best_acc = 0
-        model_best_loss = 'N/A'
+        model_best_loss = 9999999
         model_best_val_acc = 0
-        model_best_val_loss = 'N/A'
-        model_best_combined_ave_loss = 'N/A'
+        model_best_val_loss = 9999999
+        model_best_combined_ave_loss = 9999999
 
     cnx = mysql.connector.connect(user='tfpp', password='tfpp',
-                                  host='127.0.0.1',
+                                  host=db_host,
                                   database='tfpp')
 
     uniqueID = rowDict['unique_id']

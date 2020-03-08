@@ -8,6 +8,12 @@ import csv
 import MyFunctions
 import sys
 
+# Global config
+MyFunctions.db_host = ModelConfig.db_host
+MyFunctions.db_username = ModelConfig.db_username
+MyFunctions.db_pwd = ModelConfig.db_pwd
+
+
 # Should move this to MyFunctions later
 from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
@@ -69,9 +75,7 @@ class MyLSTMModelV2 (object):
         self.myf.lr_max = .009  # Used with CLR - set by LR Finder if that is used
         self.error = False
         self._model_def(configDict)
-        MyFunctions.db_host = ModelConfig.db_host
-        MyFunctions.db_username = ModelConfig.db_username
-        MyFunctions.db_pwd = ModelConfig.db_pwd
+
 
 
         # Haven't yet compiled, and run LRF.  Need to move this   -  MOVED TO MYFUNCTIONS
