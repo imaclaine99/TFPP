@@ -144,7 +144,7 @@ class MyLSTMModelV2 (object):
                     if self.flattened == False:
                         # Check if we have any future LSTMs or not.  If we do NOT, flatten now
                         future_lstm = False
-                        for look_ahead_layer in range(1, int(configDict['Layers']) + 1):
+                        for look_ahead_layer in range(layer+1, int(configDict['Layers']) + 1):
                             if configDict['Layer' + str(look_ahead_layer)]['LayerType'] == 'LSTM':
                                  future_lstm = True
                         if future_lstm == False:
@@ -158,7 +158,7 @@ class MyLSTMModelV2 (object):
                         # Add without flattening
                         self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu"))
                elif current_layer['LayerType'] == 'LSTM':
-                    if current_layer['ReturnSequences'] == 'True':
+                    if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                         return_sequences = True
                     else:
                         return_sequences = False
@@ -208,7 +208,7 @@ if __name__ == "__main__":
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
             MyFunctions.db_update_row(modelDict)
         except:
-            print("Oops!", sys.exc_info()[0], "occured.")
+            print("Oops!", sys.exc_info()[0], "occurred.")
             print('Occurred with configDict:')
             print(modelDict)
             modelDict['ErrorDetails'] = sys.exc_info()[0]

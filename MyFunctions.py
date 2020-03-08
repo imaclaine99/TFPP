@@ -791,6 +791,7 @@ def db_update_row (rowDict, success=True):
                  "model_best_val_acc = %s, "
                  "model_best_val_loss = %s, "
                  "model_best_combined_ave_loss = %s "
+                 "ErrorDetails = %s"
                  "WHERE unique_id = %s")
 
     cursor.execute(query, ('True', float(model_best_acc),
@@ -798,6 +799,7 @@ def db_update_row (rowDict, success=True):
                   float(model_best_val_acc),
                   float(model_best_val_loss),
                   float(model_best_combined_ave_loss),
+                  rowDict['ErrorDetails'],
                   uniqueID))
     cnx.commit()
     cnx.close()
