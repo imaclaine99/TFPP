@@ -52,6 +52,7 @@ default_optimizer = 'Nadam' # Not used if explicity set when called in compile a
                             # SGD+NM  (Nesterov Momentum), AdamDelta (?)
                             # Do I also want to specific optimizer tunables - e.g. opt_lr, opt_??
 output_images_path = r'.\\output_images\\'
+models_path =  r'.\\models\\'
 read_backwards  = False     # Default is to read from start to end.
 callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
@@ -790,8 +791,8 @@ def db_update_row (rowDict, success=True):
                  "model_best_loss = %s, "
                  "model_best_val_acc = %s, "
                  "model_best_val_loss = %s, "
-                 "model_best_combined_ave_loss = %s "
-                 "ErrorDetails = %s"
+                 "model_best_combined_ave_loss = %s, "
+                 "ErrorDetails = %s "
                  "WHERE unique_id = %s")
 
     cursor.execute(query, ('True', float(model_best_acc),
@@ -832,9 +833,6 @@ def read_row (datafile):
         writer.writeheader()
 
         return_row = None           # Default - If None, we're done or broken
-
- #       if read_backwards:
- #           reader = reversed(reader)
 
         for row in reader:
             ## Any Updates??
@@ -920,6 +918,10 @@ def finish_update_row (datafile, row_to_update, success=True):
 
             writer.writerow(row)
         return found_row
+
+
+def save_model(model, model_filename):
+    model.save(models_path + model_filename)
 
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
 

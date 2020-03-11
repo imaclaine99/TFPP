@@ -207,6 +207,8 @@ if __name__ == "__main__":
 
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
             MyFunctions.db_update_row(modelDict)
+            if model.myf.model_best_loss < 1.5:
+                model.myf.save_model(model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
         except:
             print("Oops!", sys.exc_info()[0], "occurred.")
             print('Occurred with configDict:')
