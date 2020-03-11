@@ -1,2 +1,5 @@
 # Project exclude paths
 /venv/
+/models_to_test2.old2.csv
+/models_to_test2.old.csv
+/models_to_test2.6marRun.csv
