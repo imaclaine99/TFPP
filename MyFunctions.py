@@ -702,14 +702,17 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         else:
             return 0
 
-def read_from_from_db(sort='None'):     # Sort can be None, Random, NodesAsc, NodesDesc
+def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc
     cnx = mysql.connector.connect(user='tfpp', password='tfpp',
                                   host=db_host,
                                   database='tfpp')
 
     cursor = cnx.cursor(dictionary=True)
 
-    if sort == 'None':
+    if unique_id != None:
+        query = ("SELECT * FROM testmodels "
+                 "where unique_id = %s ", (unique_id,) )
+    elif sort == 'None':
         query = ("SELECT * FROM testmodels "
                  "where started <> 'True' " )
     elif sort == 'NodesAsc':
@@ -767,7 +770,7 @@ def db_update_row (rowDict, success=True):
         except:
             print ('[INFO: DB Connect Error on try number ' + str(db_connect_loop))
             time.sleep (5*60)
-            
+
     uniqueID = rowDict['unique_id']
 
     cursor = cnx.cursor(dictionary=True)

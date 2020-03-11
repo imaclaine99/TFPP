@@ -15,7 +15,7 @@ opt = 'Adamax'
 datafile = r'.\models_to_test2.csv'
 dense_kernel_initialiser = RandomNormal(mean=0, stddev=0.1, seed=None)
 #dense_kernel_initialiser = 'glorot_uniform'
-db_host = '127.0.0.1'
+db_host = '192.168.0.109'
 db_username = 'tfpp'
 db_pwd = 'tfpp'
 
