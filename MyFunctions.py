@@ -711,26 +711,27 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
     cursor = cnx.cursor(dictionary=True)
 
     if unique_id != None:
-        query = ("SELECT * FROM testmodels "
-                 "where unique_id = %s ", (unique_id,) )
-    elif sort == 'None':
-        query = ("SELECT * FROM testmodels "
-                 "where started <> 'True' " )
-    elif sort == 'NodesAsc':
-        query = ("SELECT * FROM testmodels "
-                 "where started <> 'True' "
-                 "order by TotalNodes asc")
-    elif sort == 'NodesDesc':
-        query = ("SELECT * FROM testmodels "
-                 "where started <> 'True' "
-                 "order by TotalNodes desc")
-    elif sort == 'Random':
-        query = ("SELECT * FROM testmodels "
-                 "where started <> 'True' "
-                 "order by RAND()")
+        query = "SELECT * FROM testmodels where unique_id = %s "
+        cursor.execute(query, (unique_id,))
+    else:
+        if sort == 'None':
+            query = ("SELECT * FROM testmodels "
+                     "where started <> 'True' " )
+        elif sort == 'NodesAsc':
+            query = ("SELECT * FROM testmodels "
+                     "where started <> 'True' "
+                     "order by TotalNodes asc")
+        elif sort == 'NodesDesc':
+            query = ("SELECT * FROM testmodels "
+                     "where started <> 'True' "
+                     "order by TotalNodes desc")
+        elif sort == 'Random':
+            query = ("SELECT * FROM testmodels "
+                     "where started <> 'True' "
+                     "order by RAND()")
+        query = query + " LIMIT 1"
+        cursor.execute(query, (unique_id,))
 
-    query = query + " LIMIT 1"
-    cursor.execute(query)
     rowDict = cursor.fetchone()
     print(rowDict)
 
@@ -795,6 +796,7 @@ def db_update_row (rowDict, success=True):
                  "WHERE unique_id = %s")
     cursor.execute(query, ('True', uniqueID))
 
+    print ("[INFO] Update DB with Error Details: " + rowDict['ErrorDetails'])
 
     query = ("UPDATE testmodels SET Finished = %s, "
                  "model_best_acc = %s, "
@@ -932,6 +934,21 @@ def finish_update_row (datafile, row_to_update, success=True):
 
 def save_model(model, model_filename):
     model.save(models_path + model_filename)
+
+def dict_to_description(modelDict):
+    layers = int(modelDict['Layers'])
+    model_description = str(layers) + 'Layers_' + modelDict['Layer1']['LayerType'] + str(
+        modelDict['Layer1']['Nodes'])
+    if layers >= 2:
+        model_description += '_' + modelDict['Layer2']['LayerType'] + str(modelDict['Layer2']['Nodes'])
+    if layers >= 3:
+        model_description += '_' + modelDict['Layer3']['LayerType'] + str(modelDict['Layer3']['Nodes'])
+    if layers >= 4:
+        model_description += '_' + modelDict['Layer4']['LayerType'] + str(modelDict['Layer4']['Nodes'])
+    if layers >= 5:
+        model_description += '_' + modelDict['Layer5']['LayerType'] + str(modelDict['Layer5']['Nodes'])
+
+    return model_description
 
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
 

@@ -186,19 +186,7 @@ if __name__ == "__main__":
         try:
             model = MyLSTMModelV2(modelDict)
 
-            layers = int(modelDict['Layers'])
-            model_description = str(layers) + 'Layers_' + modelDict['Layer1']['LayerType'] + str(
-                modelDict['Layer1']['Nodes'])
-            if layers >= 2:
-                model_description += '_' + modelDict['Layer2']['LayerType'] + str(modelDict['Layer2']['Nodes'])
-            if layers >= 3:
-                model_description += '_' + modelDict['Layer3']['LayerType'] + str(modelDict['Layer3']['Nodes'])
-            if layers >= 4:
-                model_description += '_' + modelDict['Layer4']['LayerType'] + str(modelDict['Layer4']['Nodes'])
-            if layers >= 5:
-                model_description += '_' + modelDict['Layer5']['LayerType'] + str(modelDict['Layer5']['Nodes'])
-
-            model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model_description + ModelConfig.opt
+            model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
             model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
@@ -208,7 +196,7 @@ if __name__ == "__main__":
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
             MyFunctions.db_update_row(modelDict)
             if model.myf.model_best_loss < 1.5:
-                model.myf.save_model(model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
+                model.myf.save_model(model.model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
         except:
             print("Oops!", sys.exc_info()[0], "occurred.")
             print('Occurred with configDict:')
