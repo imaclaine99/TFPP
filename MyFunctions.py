@@ -729,7 +729,7 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
                      "order by RAND()")
-        query = query + " LIMIT 1"
+            query = query + " LIMIT 1"
         cursor.execute(query, (unique_id,))
 
     rowDict = cursor.fetchone()
