@@ -781,10 +781,15 @@ def db_update_row (rowDict, success=True):
     cursor.execute(query)
     cursor.fetchone()
 
-    cursor.execute("""
+    rowcount = cursor.execute("""
         UPDATE testmodels SET Started='True'
         WHERE unique_id = %s
     """, (uniqueID,))
+
+    if rowcount != 1:
+        print ("[ERROR]: Update Row DB has returned row count of " + str (rowcount))
+        print ('Full ModelDict follows')
+        print (rowDict)
 
     cursor.execute("""
         UPDATE testmodels SET Finished='True'
@@ -796,7 +801,8 @@ def db_update_row (rowDict, success=True):
                  "WHERE unique_id = %s")
     cursor.execute(query, ('True', uniqueID))
 
-    print ("[INFO] Update DB with Error Details: " + rowDict['ErrorDetails'])
+    print ("[INFO] Update DB for unique id " + str(uniqueID) + "with Error Details (if any) : " + rowDict['ErrorDetails'])
+
 
     query = ("UPDATE testmodels SET Finished = %s, "
                  "model_best_acc = %s, "

@@ -194,7 +194,7 @@ if __name__ == "__main__":
                                     model.myf.model_description)
 
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
-            MyFunctions.db_update_row(modelDict)
+            model.myf.db_update_row(modelDict)      # Use the myf from the model to make sure we get the relevant global values.  This may explain some strange behaviour with updates not working...
             if model.myf.model_best_loss < 1.5:
                 model.myf.save_model(model.model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
         except:
