@@ -30,7 +30,7 @@ EPOCHS = 50
 batch_size = 8                  # Testing suggests a batch of 4 or 2 gives better results than 8 - gets to a better loss reduction AND more quickly.  Let's use 4 moving forward for now...
 processing_range = 250          #  Default number of rows to process.  Can set to something else if needed (and useful for testing!)
 shuffle_data = True             # For LSTM, may not want to shuffle data.    This applies to both the training/test data split, as well as the fit function when training.
-is_dupe_data = False           # If True, duplicates certain y train (not Test) Values.  ONLY USE IF shuffle_data is true
+is_dupe_data = False            # If True, duplicates certain y train (not Test) Values.  ONLY USE IF shuffle_data is true
 dupe_vals = (1,2,5,10)
 output_summary_logfile  = ".\outputsummary.csv"
 model_description = ""          # This can be useful to set for logging purposes
@@ -48,6 +48,8 @@ lrf_batch = 64              # Needs to be large enough not to get 'noise', espec
 clr_mode = 'None'           #  'triangular'
 lr_min = 1e-15 #2.5e-5             # 0.00001            # Used with CLR - set by LR Finder if that is used
 lr_max = 0.01               # Used with CLR - set by LR Finder if that is used
+atr_rule = 1                # 1 is the original max of TR over 20 days.  3 is a beta decay based calc.  2 is not yet implemented :)
+atr_beta_decay = 0.98       # Gone with 0.98 to start with.  Would be interested to try different values - aim is to not have this too low, as this smooths out spikes in volatility.  Too high though, and it may skew early data.  Currently used only on rule 3
 default_optimizer = 'Nadam' # Not used if explicity set when called in compile and fit, otherwise this is used.  Can be anything that is supported, but keep in mind that different optimizers will work with LR very differently!
                             # Other options:   SGD,   SGD+CLR, Adam, ????.    Need to decide best way to manage tunables for the optimser...
                             # SGD+NM  (Nesterov Momentum), AdamDelta (?)
@@ -63,21 +65,26 @@ db_host = '127.0.0.1'
 db_username = 'tfpp'
 db_pwd = 'tfpp'
 
-def parsefile(filename, output_column_name, strip_first_row=False):
+def parsefile(filename, output_column_name, strip_last_row=True):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
         Strips the last row, as this can't have a target (will be undefined)
         May want to strip the first row in some cases = e.g. percantage based input
     """
     infile = pd.read_csv(filename, engine="python")
 
-    # Need to ignore the last row, as doesn't have a valid indicator.
     # So, we need to build up an array that has # examples of 250 x 4 for XTrain - 250 rows of O H L C (can ignore date)
     # Need to 'slice' the data somehow :)
 
-    # We drop the last row - its no use.  We now have the four columns of data we need.  Need to now create this into len-249 samples ready for Keras to process
-    olhc_data = infile.loc[0:(len(infile) - 2), 'Open':'Close']
+    if strip_last_row == True:
+        # We drop the last row - its no use.  We now have the four columns of data we need.  Need to now create this into len-249 samples ready for Keras to process
+        # Need to ignore the last row when training, as doesn't have a valid indicator.
+        end_row = len(infile) - 2
+    else:
+        end_row = len(infile)
+
+    olhc_data = infile.loc[0:end_row, 'Open':'Close']
     output_data = infile[output_column_name]
-    output_data = output_data[0:len(output_data) - 1]
+    output_data = output_data[0:len(olhc_data)]               # Was len(output_data), but changed to end_row to ensure these two keep in sync
 
     return olhc_data, output_data
 
@@ -233,10 +240,16 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     global model_best_val_loss
 
     # read meta_data from file
-    meta_np = np.recfromcsv(metadatafilename)      # best guess, best_guess_loss, best_guess_accuracy
-    best_guess = meta_np[0]
-    best_guess_loss = meta_np[1]
-    best_guess_acc = meta_np[2]
+    if (metadatafilename != ''):
+        meta_np = np.recfromcsv(metadatafilename)      # best guess, best_guess_loss, best_guess_accuracy
+        best_guess = meta_np[0]
+        best_guess_loss = meta_np[1]
+        best_guess_acc = meta_np[2]
+    else:
+        best_guess = 0
+        best_guess_loss = 0
+        best_guess_acc = 0
+        meta_np = [0,0,0]
 
     max_y_axis = 10     # may want to be smarter with this later
 
@@ -313,7 +326,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
                                                                   last_exec_duration, platform.node(), model_description))
 
 
-def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy') -> object:
+def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy', compile = True) -> object:
     # initialize our initial learning rate and # of epochs to train for
     INIT_LR = 0.01
     #    EPOCHS = 75
@@ -340,7 +353,9 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
 
     print ("[INFO] About to start with optimizer " + str(optimizer))
 
-    model.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
+    # This allows us to use this function iteratively, but only compile the first time
+    if (compile):
+        model.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
 
 
     # Check if LR Finder is to be used, which will then set min / max LR rates  -
@@ -482,15 +497,113 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
     # Reset Keras Session, to avoid overheads on multiple iterations
         K.clear_session()
 
+def parse_process_plot_multi_source(infile_array, output_col, model, output_prefix, num_samples=250, version=1):
+    """
+    # Same as parse_process_plot, BUT, takes multiple data sources and runs them one EPOCH at a time per file
+    # No idea if this will work well or not, but seems worth trying!
+    # Version 1 - keep the files data separate, and train one epoch at a time across each
+    # Version 2 - merge all the TRAIN data into a single file.  Only test with the TEST data of the first file - this allows us to use the meta data
+    """
+    #olhc_data, output_data = parsefile(infile, output_col)
+    #xtrain, ytrain = parse_data(olhc_data, output_data, num_samples)
 
+    # TODO: Don't need the random anymore - should change that to reduce TECH DEBT
+   # xtrain, xtest, ytrain, ytest, ytrain_rnd, ytest_rnd = parse_data_to_trainXY_plusRandY (infile, output_col)
+
+    xtrain = []
+    xtest = []
+    ytrain = []
+    ytest = []
+    index = 0
+
+    for file in infile_array:
+        xtrain_new, xtest_new, ytrain_new, ytest_new = parse_data_to_trainXY (file, output_col)
+        index+=1
+        xtrain.append(xtrain_new)
+        xtest.append(xtest_new)
+        ytrain.append(ytrain_new)
+        ytest.append(ytest_new)
+
+    if version == 2:
+        # We need to combine our TRAIN data
+        V2_xtrain = np.concatenate(xtrain)              # These are lists of xtrains, which we're now concatenating.  Pretty simple really!
+        V2_ytrain = np.concatenate(ytrain)
+        V2_xtrain, V2_ytrain = shuffle(V2_xtrain, V2_ytrain)
+
+    # No meta data - multiple files!  However, take it from the 0th file, just to ensure don't break the plot function
+    # 1st April 2020 - this actually works well - we TEST on the first file only, but TRAIN on all 4 files
+
+    meta_filename = infile_array[0].split("\\")    # This feels very hacky...
+    if output_col == 'SellWeightingRule' :
+        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
+    else:
+        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_meta.csv"
+
+    global last_exec_duration
+    if version == 1:
+        import time
+        start = time.time()
+
+        global EPOCHS
+        # This is a bit messy, but I now need to set EPOCHS to 1 to iterate, and then set it back later...
+        EPOCHS_orig = EPOCHS
+        EPOCHS = 1
+
+        iteration = 0
+        for epoch in range (0, EPOCHS_orig):
+            for file in range (0, len(xtrain)):
+                print ('[INFO] Iteration ' + str(epoch) + ' on file number ' + str(file))
+                if iteration == 0:
+                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file], loss='mean_squared_error', optimizer=default_optimizer)
+                else:
+                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file],
+                                         loss='mean_squared_error', optimizer=default_optimizer, compile=False)
+                if iteration == 0:
+                    My_H = H1
+                else:
+                    My_H.history["loss"].append(H1.history["loss"][0])           # De-reference to turn list into float
+                    My_H.history["val_loss"].append(H1.history["val_loss"][0])
+                    My_H.history["accuracy"].append(H1.history["accuracy"][0])
+                    My_H.history["val_accuracy"].append(H1.history["val_accuracy"][0])
+
+                iteration+=1
+    #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
+
+        EPOCHS = EPOCHS_orig
+
+        end = time.time()
+
+        last_exec_duration = end - start
+
+     #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
+
+        plot_and_save_history_with_baseline(My_H, EPOCHS * len(xtrain), output_prefix, resolved_meta_filename)      # Multiple EPOCHS by the number of input files.
+
+    elif version == 2:
+        import time
+        start = time.time()
+        H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss='mean_squared_error', optimizer=default_optimizer)
+        #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
+        end = time.time()
+
+        last_exec_duration = end - start
+
+        #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
+
+        plot_and_save_history_with_baseline(H, EPOCHS, output_prefix, resolved_meta_filename)
+
+    if clear_session == True:
+    # Reset Keras Session, to avoid overheads on multiple iterations
+        K.clear_session()
 
 ###  File Functions
-def parse_file (infilename):
+def parse_file (infilename, purpose='Train'):
     """
     Reads a CSV file in format of date,open,high,low,close, with optional volume
     Parses this based on defined rules (see below) and writes to the ..\parsed_data\<filename>_parsed.csv
 
     :param infile: filename, stored in ..\input_data
+    ;      purpose: is this for training or eval?  If eval, process ALL rows to the end, and use a different path to avoid issues
     :return: true, unless an error
     """
     infile = pd.read_csv(r".\\input_data\\" + infilename, engine="python")
@@ -499,12 +612,20 @@ def parse_file (infilename):
     # So, we need to build up an array that has # examples of 250 x 4 for XTrain - 250 rows of O H L C (can ignore date)
     # Need to 'slice' the data somehow :)
 
-    # We drop the last row - its no use.  We now have the four columns of data we need.  Need to now create this into len-249 samples ready for Keras to process
-    ohlc_data = infile.loc[0:(len(infile) - 2), 'Date':'Close']
+    # Drop Null or other invalid data
+    infile = infile.apply(pd.to_numeric, errors='coerce')
+    infile = infile.dropna(subset=['Open', 'Close'])
+    infile = infile.reset_index(drop=True)
+
+    if (purpose == 'Train'):
+        # We drop the last row - its no use.  We now have the four columns of data we need.  Need to now create this into len-249 samples ready for Keras to process
+        ohlc_data = infile.loc[0:(len(infile) - 2), 'Date':'Close']
+    else:
+        ohlc_data = infile.loc[0:(len(infile)), 'Date':'Close']
     ohlc_data.insert(5, "BuyWeightingRule", 0)   # insert 0's.
     ohlc_data.insert(6, "TrueRange", 0)
     ohlc_data.insert(7, "SellWeightRule", 0)    # insert 0's
-
+    ohlc_data.insert(8, "ATR", 0)               # Adding this to calc and maintain ATR.  There are now different rules, so this is the best way to deal with this
     # Convert to a numpy
     ohlc_np: numpy = ohlc_data.to_numpy()
     #print(ohlc_data)
@@ -513,14 +634,26 @@ def parse_file (infilename):
     del ohlc_data           # avoid any mistakes!
 
 
-    for i in range (len(ohlc_np)-20+2):                         # Not quite sure why + 2 rather than + 1, but it works...
+    if purpose == 'Train':
+        end_row =  len(ohlc_np)-20+2   # Not quite sure why + 2 rather than + 1, but it works...
+    else:
+        end_row = len(ohlc_np)
+
+    for i in range (end_row):
         # Define some useful values - Future max / min over 20 periods - used to calc our Buy and Sell Rules
         #       near_future_max = max(ohlc_data['High'][i+1:i+20]-ohlc_data['Close'][i])/ohlc_data['Close'][i]
         #       near_future_mix = min(ohlc_data['High'][i+1:i+20]-ohlc_data['Close'][i])/ohlc_data['Close'][i]
         #numpy is row, col
-        near_future_max = (max(ohlc_np[i+1:i+21, 2])-ohlc_np[i,4])/ohlc_np[i,4]
-        near_future_min = (min(ohlc_np[i+1:i+21, 3])-ohlc_np[i,4])/ohlc_np[i,4]
-        #        near_future_min = (min(ohlc_np[i+1:i+21, 2])-ohlc_np[i,4])/ohlc_np[i,4]    #Orig rule - but used high, rather than low.  Correct now
+
+        if (i < len(ohlc_np)-20-2):
+
+            near_future_max = (max(ohlc_np[i+1:i+21, 2])-ohlc_np[i,4])/ohlc_np[i,4]
+            near_future_min = (min(ohlc_np[i+1:i+21, 3])-ohlc_np[i,4])/ohlc_np[i,4]
+            #        near_future_min = (min(ohlc_np[i+1:i+21, 2])-ohlc_np[i,4])/ohlc_np[i,4]    #Orig rule - but used high, rather than low.  Correct now
+        else:
+            near_future_max = 0
+            near_future_min = 0
+
 
         # TODO:  Define a BuyWeightingRuleFunction.  Pass ohlc numpy array, and current row number - this provides maximum flexibility.
             # Question is - what would I pass in?  Probably the np array from i, and let the function figure the rest out...
@@ -549,25 +682,38 @@ def parse_file (infilename):
 
         #True Range - We need this for later processing into percentages.
         if i == 0:
-    #            ohlc_data[i, 6] = 0
-            ohlc_np[i, 6] = 0
+             #   ohlc_np[i, 6] = 0
+             ohlc_np[i, 6] = ohlc_np[i, 2] - ohlc_np[i, 3]         # 22nd March - don't use 0 - 0 is less valid than at least using this!!
+             ohlc_np[i, 8] = ohlc_np[i,6]               # ATR
         else:
     #        ohlc_data[i, 6] = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
              ohlc_np[i, 6] = max (ohlc_np[i,2] - ohlc_np[i,3], abs(ohlc_np[i,2] - ohlc_np[i-1,4]), abs(ohlc_np[i,3] - ohlc_np[i-1,4]))
+             ohlc_np[i, 8] = ohlc_np[i-1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
         # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
 
-        print('Row Done!' + str (i))
+
+    # Need to calc the "ATR20" for rows missed in the above...
+        for i in range(end_row, end_row+20-2):
+            ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
+                                abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
+            ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
+
+ #       print('Row Done!' + str (i))
         #### TODO :   CAN PROFIT, SELL RULE
 
         # Sell Rule
-        ohlc_np[i,7] = sell_weighting_rule(ohlc_np, i)
+        if (i < len(ohlc_np) - 20 - 2):
+            ohlc_np[i,7] = sell_weighting_rule(ohlc_np, i)
 
     # We have to lose the first and last 20 rows - we don't have valid data for them for Y values or ATR values
-    for i in range (len(ohlc_np)-20 +1, 20-1-1, -1):
-        # Calculate the percentages instead of absolute values
-#        atr20 = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
-        atr20 = max (ohlc_np[i,2] - ohlc_np[i,3], abs(ohlc_np[i,2] - ohlc_np[i-1,3]), abs(ohlc_np[i,3] - ohlc_np[i-1,4]))
+#    for i in range (len(ohlc_np)-20 +1, 20-1-1, -1):
+
+    atr20 = 0           # Zero this - we calc and use it in the loop below.  Its no longer atr20 either...
+
+    # 15th March - the above is true for training, but for prediction, need to calculate to the last row.  Do that now, and strip the data depending on the use case.
+    for i in range(len(ohlc_np)-1 , 20 - 1 - 1, -1):
         # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
+
 
         #print (i)
         #Work backwards, so we don't overwrite'
@@ -577,7 +723,30 @@ def parse_file (infilename):
             ohlc_np[0,3] = 0
             ohlc_np[0,4] = 0
         else:
-            atr20 = mean(ohlc_np[i-19:i+1,6])           # This is basically today working back 20...
+            #            atr20 = mean(ohlc_np[i-19:i+1,6])           # This is basically today working back 20...
+            # 22nd March.  The ATR20 has potentially large impacts.  One the positive, it helps normalise the data in a way that should be invariant to its range and normal volatility.
+            # On the negative, the current approach risks filtering significant movements from even appearing in the data at all.
+            # The experience to date is that the current rule certainly is okay for training - some models get effectively 100% accuracy and 0 loss. HOWEVER, the validation is not as good, and even worse,
+            # when used on extreme events such as Feb/Mar 2020, it was doing badly - giving BUY signals during a massive drop.  It is plausible that the ATR as currently calculated reduced the volatility appearing in the data, which is not helpful.
+            # There are potentially two key problems here:
+            # Firstly - the use of MAX vs AVERAGE.  This leads to big changes in the calculation as new data enters, having the large value effectively immediately impact the normalisation in a dramatic way.
+            # Secondly, the duration over which is is calculated - a longer range would reduce the impacts here.
+            # So, to retain backwards compatibility, but also try some new things, here are the options:
+            # Rule 1 - As is ATR20 based on max over the past 20 days, using MAX Values
+            # Rule 2 - Use an average of some kind over this period (20 days).  Need to work out how best to do this - probably just averaging ohlc_np[i, 6] ??
+            # Rule 3 - An alpha/betay decay - need to look this up, but a value of say .95, which takes the existing value at 0.95 and adds the current.  This is used in many functions, and seems to have the same effect as an EMA.  The
+            #       other good positive is that it doesn't need n days of history - it builds itself up.
+            # Moving this code - the original atr20 that was here doesn't seem to be used...
+
+            if atr_rule == 1:
+                # Calculate the percentages instead of absolute values
+                #        atr20 = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
+                #atr20 = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 3]),
+                #            abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
+                atr20 = mean(ohlc_np[i - 19:i + 1, 6])  # This is basically today working back 20...
+            elif atr_rule == 3:
+                atr20 = ohlc_np[i,8]
+
             ohlc_np[i,1] = (ohlc_np[i,1] - ohlc_np[i-1,4])/atr20   #  Subtract yesterdays' close
             ohlc_np[i,2] = (ohlc_np[i,2] - ohlc_np[i-1,4])/atr20    #  Subtract yesterdays' close
             ohlc_np[i,3] = (ohlc_np[i,3] - ohlc_np[i-1,4])/atr20    #  Subtract yesterdays' close
@@ -590,8 +759,16 @@ def parse_file (infilename):
     # Need to drop coulumn 6 - the ATR.
     ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.
 
+    if atr_rule > 1:
+        infilename = 'Rule' + str(atr_rule) + "_B" + str (atr_beta_decay) + infilename
+
 #    numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:6], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule', fmt=['%s','%f','%f','%f','%f','%f'], comments='')
-    numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:7], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule', fmt=['%s','%f','%f','%f','%f','%f', '%f'], comments='')
+    if purpose == 'Train':
+        numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:7], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule', fmt=['%s','%f','%f','%f','%f','%f', '%f'], comments='')
+    else:
+        numpy.savetxt(".\\parsed_data_full\\" + infilename, ohlc_np[19:, 0:7], delimiter=',',
+                      header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule',
+                      fmt=['%s', '%f', '%f', '%f', '%f', '%f', '%f'], comments='')
 #    print (ohlc_np           )
     #pd.DataFrame(ohlc_np[19:,0:6]).to_csv(".\\parsed_data\\" + infilename)
 
@@ -600,12 +777,15 @@ def parse_file (infilename):
     # To do this, I need to calculate:
         # Sum of all errors if 0, 1, 2, 3, 4, 5
 
+    if purpose != 'Train':
+        return
+
     buy_best_ave_loss = 999
     buy_best_accuracy = 0
     sell_best_ave_loss = 999
     sell_best_accuracy = 0
     i: int
-    for i in range(max(ohlc_np[:,5])+1):
+    for i in range(int(max(ohlc_np[:,5])+1)):
         buy_current_ave_loss = np.sum((ohlc_np[:,5] - i) * (ohlc_np[:,5] - i))  / (len(ohlc_np))
         buy_current_accuracy = np.bincount(ohlc_np[:,5].astype(np.int))[i] / len(ohlc_np)       # Count the number of i's via bincount, and then get as a percentage
         sell_current_ave_loss = np.sum((ohlc_np[:,6] - i) * (ohlc_np[:,6] - i))  / (len(ohlc_np))
@@ -675,7 +855,7 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         #likely_sell_price_tomorrow_np = np.fromfunction (lambda i, j, ohlc_np : (ohlc_np[index+1+i, 3] + ohlc_np[index+1+i, 1]) / 2, (22, 1))
         likely_sell_price_tomorrow_np = np.zeros(20)
         for i in range(20):
-            print(str(index) + " index and i:" + str(i))
+          #  print(str(index) + " index and i:" + str(i))
             if (index+i+2)>len(ohlc_np):
                 likely_sell_price_tomorrow_np[i] = likely_sell_price_tomorrow_np[i-1]
                 print ("Sell Rule overrun i: "+ str(i) + " index: " + str (index) )
@@ -786,10 +966,7 @@ def db_update_row (rowDict, success=True):
         WHERE unique_id = %s
     """, (uniqueID,))
 
-    if rowcount != 1:
-        print ("[ERROR]: Update Row DB has returned row count of " + str (rowcount))
-        print ('Full ModelDict follows')
-        print (rowDict)
+
 
     cursor.execute("""
         UPDATE testmodels SET Finished='True'
@@ -813,13 +990,19 @@ def db_update_row (rowDict, success=True):
                  "ErrorDetails = %s "
                  "WHERE unique_id = %s")
 
-    cursor.execute(query, ('True', float(model_best_acc),
+    rowcount = cursor.execute(query, ('True', float(model_best_acc),
                   float(model_best_loss),
                   float(model_best_val_acc),
                   float(model_best_val_loss),
                   float(model_best_combined_ave_loss),
                   rowDict['ErrorDetails'],
                   uniqueID))
+
+    if rowcount != 1:
+        print ("[ERROR]: Update Row DB has returned row count of " + str (rowcount))
+        print ('Full ModelDict follows')
+        print (rowDict)
+
     cnx.commit()
     cnx.close()
 
@@ -955,6 +1138,10 @@ def dict_to_description(modelDict):
         model_description += '_' + modelDict['Layer5']['LayerType'] + str(modelDict['Layer5']['Nodes'])
 
     return model_description
+
+
+def load_model (model_filename):
+    return keras.models.load_model (models_path + model_filename)
 
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
 

@@ -13,7 +13,14 @@ MyFunctions.db_host = ModelConfig.db_host
 MyFunctions.db_username = ModelConfig.db_username
 MyFunctions.db_pwd = ModelConfig.db_pwd
 
+# Variant on Model V2 with the following changes
+# Use Rule 3 of ATR with Beta of TBC
+# Use multi file processing but down to 150 epochs
+# Use more selective Permutation Creator
+# To Do -ATR Rule, Multi File, Epochs
 
+infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" + 'Rule3_B0.98^STOXX50E_OHLC.csv',
+                ".\parsed_data\\" + 'Rule3_B0.98^FTSE_2019OHLC.csv', ".\parsed_data\\" + 'Rule3_B0.98^GSPC.csv')
 
 
 # Should move this to MyFunctions later
@@ -54,24 +61,23 @@ if ModelConfig.disableGPU == True:
 # Each Layer Consists of:
 # fieldnames = ['LayerType', 'Nodes', 'OverFittingHelp', 'ReturnSequences'
 
-class MyLSTMModelV2 (object):
+class MyLSTMModelV2b (object):
     import MyFunctions as myf
     lr_reg = 0.001      # Not sure of the difference of this vs the init?
 #    dropout = 0.2
 
-    def __init__(self, configDict, lstm_stateful = False ):              # lstm_stateful : Allow consumers to set this to True):
+    def __init__(self, configDict):
         self.num_layers = configDict['Layers']
-        self.myf.EPOCHS = ModelConfig.epochs
-        self.myf.batch_size = ModelConfig.batch_size
+        self.myf.EPOCHS = 75 # ModelConfig.epochs
+        self.myf.batch_size = 64 #ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
 #        self.myf.read_backwards = ModelConfig.read_backwards
 #        self.db_read_sort = ModelConfig.db_read_sort
 #        MyFunctions.read_backwards = ModelConfig.read_backwards     # This is messy....
         self.myf.dupe_vals = (1,2,2,5,10)       # Can't hurt to have 2 in twice can it?
-        self.myf.default_optimizer = 'SGD+CLR'
+     #   self.myf.default_optimizer = 'SGD+CLR'
         self.flattened = False      # Check if we've flattened, and ensure we do by the last layer
-        self.lstm_stateful = lstm_stateful
         if 'clr_mode' in locals():
             self.myf.clr_mode = ModelConfig.clr_mode
         self.myf.lr_min = 1.75e-5  # Used with CLR - set by LR Finder if that is used
@@ -119,7 +125,7 @@ class MyLSTMModelV2 (object):
             else:
                 return_sequences = False
                 self.flattened = True           # Return sequences of False implies this - prevent adding another FLatten
-            self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser, stateful=self.lstm_stateful))
+            self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))
             # Not yet using the OverFitting Helper Variable - will consider that later.
         else:
             self.error = 'Unknown Layer Type on Layer 1'
@@ -166,7 +172,7 @@ class MyLSTMModelV2 (object):
                     else:
                         return_sequences = False
                         self.flattened = True       # LSTM without return sequences effectively flattens
-                    self.model.add(LSTM(2 ** int(current_layer['Nodes']),  return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser, stateful=self.lstm_stateful))              # Removed input_shape=(ModelConfig.num_samples, 4),  # that should only be used in the first layer
+                    self.model.add(LSTM(2 ** int(current_layer['Nodes']),  return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))              # Removed input_shape=(ModelConfig.num_samples, 4),  # that should only be used in the first layer
                     # Not yet using the OverFitting Helper Variable - will consider that later.
                else:
                     self.error = 'Unknown Layer Type on Layer # ' + str(layer) + ' ' + str(current_layer)
@@ -187,14 +193,15 @@ if __name__ == "__main__":
             break;
 
         try:
-            model = MyLSTMModelV2(modelDict)
+            model = MyLSTMModelV2b(modelDict)
 
-            model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
+            model.myf.model_description = 'LSTMMModelV2b_ATR3_BetaTBC ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
-            model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
-                                    model.model,
-                                    model.myf.model_description)
+
+
+            model.myf.parse_process_plot_multi_source(infile_array, "BuyWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
 
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
             model.myf.db_update_row(modelDict)      # Use the myf from the model to make sure we get the relevant global values.  This may explain some strange behaviour with updates not working...
