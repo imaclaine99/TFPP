@@ -19,7 +19,7 @@ MyFunctions.db_pwd = ModelConfig.db_pwd
 # Use more selective Permutation Creator
 # To Do -ATR Rule, Multi File, Epochs
 
-infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" + 'Rule3_B0.98^STOXX50E_OHLC.csv',
+infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" + 'Rule3^STOXX50E_OHLC.csv',
                 ".\parsed_data\\" + 'Rule3_B0.98^FTSE_2019OHLC.csv', ".\parsed_data\\" + 'Rule3_B0.98^GSPC.csv')
 
 
@@ -68,7 +68,7 @@ class MyLSTMModelV2b (object):
 
     def __init__(self, configDict):
         self.num_layers = configDict['Layers']
-        self.myf.EPOCHS = 75 # ModelConfig.epochs
+        self.myf.EPOCHS = 125 # ModelConfig.epochs
         self.myf.batch_size = 64 #ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
