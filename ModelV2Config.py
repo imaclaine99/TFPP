@@ -21,7 +21,7 @@ db_pwd = 'tfpp'
 
 
 
-gpu = True
+gpu = False
 if (gpu):
     db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
     disableGPU = False

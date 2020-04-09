@@ -11,6 +11,7 @@ from keras.layers.core import Dense
 from keras.layers.core import Flatten
 from keras.layers.core import Dropout
 from clr_callback import CyclicLR
+from keras.callbacks.callbacks import EarlyStopping
 from keras import backend as K
 from keras import optimizers
 import tensorflow as tf
@@ -61,6 +62,9 @@ callbacks = []          # This feels cludgy, but prevents me having to pass ever
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
                         # Note:  Once set (e.g. SGD+CLR) CLR can not currently be removed, as the Callback remains.  Need to review this in the future.
                         # Not a big prority, as CLR is not being used...
+early_stop_callback = True
+early_stopping_min_delta = 0.01
+early_stopping_patience = 10
 db_host = '127.0.0.1'
 db_username = 'tfpp'
 db_pwd = 'tfpp'
@@ -280,6 +284,10 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     plot_filename = filename.split('\\')
     plot_filename = plot_filename[len(plot_filename)-1]
 
+    # Due to early stopping, epochs may be less than intended.  Use the history to calculate the epochs
+    epochs = len(history.history["loss"])
+
+
     # plot the training loss and accuracy
     N = np.arange(0, epochs)
     plt.style.use("ggplot")
@@ -418,6 +426,11 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
         clr = CyclicLR(base_lr=lr_min, max_lr=lr_max,
                        step_size=800.)         # Using all defaults except Step Size - changed to 800, which should work well with a batch of 16
         callbacks.append(clr)
+
+
+    if early_stop_callback == True:
+        es = EarlyStopping('loss', min_delta=early_stopping_min_delta, patience=early_stopping_patience)
+        callbacks.append(es)
 
     # train the neural network
 
@@ -589,6 +602,8 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         last_exec_duration = end - start
 
         #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
+
+        # Due to early learning stopping, need to check
 
         plot_and_save_history_with_baseline(H, EPOCHS, output_prefix, resolved_meta_filename)
 
@@ -978,7 +993,7 @@ def db_update_row (rowDict, success=True):
                  "WHERE unique_id = %s")
     cursor.execute(query, ('True', uniqueID))
 
-    print ("[INFO] Update DB for unique id " + str(uniqueID) + "with Error Details (if any) : " + rowDict['ErrorDetails'])
+    print ("[INFO] Update DB for unique id " + str(uniqueID) + "with Error Details (if any) : " + str(rowDict['ErrorDetails']))
 
 
     query = ("UPDATE testmodels SET Finished = %s, "
@@ -995,7 +1010,7 @@ def db_update_row (rowDict, success=True):
                   float(model_best_val_acc),
                   float(model_best_val_loss),
                   float(model_best_combined_ave_loss),
-                  rowDict['ErrorDetails'],
+                  str(rowDict['ErrorDetails']),
                   uniqueID))
 
     if rowcount != 1:

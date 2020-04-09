@@ -68,7 +68,7 @@ class MyLSTMModelV2b (object):
 
     def __init__(self, configDict):
         self.num_layers = configDict['Layers']
-        self.myf.EPOCHS = 125 # ModelConfig.epochs
+        self.myf.EPOCHS = ModelConfig.epochs
         self.myf.batch_size = 64 #ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
