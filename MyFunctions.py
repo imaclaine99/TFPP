@@ -42,6 +42,7 @@ model_best_loss = 999
 model_best_val_acc = 0
 model_best_val_loss= 999
 model_best_combined_ave_loss = 999
+model_last_epochs = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
 clear_session = True        # Define whether or not we clear Keras session after fit and plot
 use_lrf = False             # Do we use the LR Finder or not?  If we do, we then need to populate LR_MIN and LR_MAX
@@ -319,13 +320,13 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
 #    model_name_file = model_name_file.split('\\//')
     model_name_file = model_name_file[len(model_name_file)-1]
     # best_guess_accuracy, best_guess,loss, EPOCHS, BATCHES
-    model_best_loss = min(history.history["loss"][int(EPOCHS/2):])              # Get the best from the 2nd half of the data.  Use the 2nd half to avoid any early noise
-    model_best_acc = max(history.history["accuracy"][int(EPOCHS/2):])
-    model_best_val_loss = min(history.history["val_loss"][int(EPOCHS/2):])
-    model_best_val_acc = max(history.history["val_accuracy"][int(EPOCHS/2):])
+    model_best_loss = min(history.history["loss"][int(epochs/2):])              # Get the best from the 2nd half of the data.  Use the 2nd half to avoid any early noise
+    model_best_acc = max(history.history["accuracy"][int(epochs/2):])
+    model_best_val_loss = min(history.history["val_loss"][int(epochs/2):])
+    model_best_val_acc = max(history.history["val_accuracy"][int(epochs/2):])
 
     # Get the best val+train loss divided by two - this is a short cut to help show if there is divergence on the 'good' reults
-    model_best_combined_ave_loss = min(np.array(history.history["loss"][int(EPOCHS/2):]) + np.array(history.history["val_loss"][int(EPOCHS/2):]))/2
+    model_best_combined_ave_loss = min(np.array(history.history["loss"][int(epochs/2):]) + np.array(history.history["val_loss"][int(epochs/2):]))/2
 
     import platform
 
@@ -429,7 +430,7 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
 
 
     if early_stop_callback == True:
-        es = EarlyStopping('loss', min_delta=early_stopping_min_delta, patience=early_stopping_patience)
+        es = EarlyStopping('loss', min_delta=early_stopping_min_delta, patience=early_stopping_patience, restore_best_weights=True)
         callbacks.append(es)
 
     # train the neural network
@@ -499,8 +500,9 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
 #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
     end = time.time()
 
-    global last_exec_duration
+    global last_exec_duration, model_last_epochs
     last_exec_duration = end - start
+    model_last_epochs = len(H.history["loss"])
 
  #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
 
@@ -558,6 +560,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         start = time.time()
 
         global EPOCHS
+        global model_last_epochs
         # This is a bit messy, but I now need to set EPOCHS to 1 to iterate, and then set it back later...
         EPOCHS_orig = EPOCHS
         EPOCHS = 1
@@ -587,6 +590,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         end = time.time()
 
         last_exec_duration = end - start
+        model_last_epochs = len(My_H.history["loss"])
 
      #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
 
@@ -600,6 +604,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         end = time.time()
 
         last_exec_duration = end - start
+        model_last_epochs = len(H.history["loss"])
 
         #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
 
@@ -1002,6 +1007,7 @@ def db_update_row (rowDict, success=True):
                  "model_best_val_acc = %s, "
                  "model_best_val_loss = %s, "
                  "model_best_combined_ave_loss = %s, "
+                 "Epochs = %s,"
                  "ErrorDetails = %s "
                  "WHERE unique_id = %s")
 
@@ -1010,6 +1016,7 @@ def db_update_row (rowDict, success=True):
                   float(model_best_val_acc),
                   float(model_best_val_loss),
                   float(model_best_combined_ave_loss),
+                  int(model_last_epochs),
                   str(rowDict['ErrorDetails']),
                   uniqueID))
 
