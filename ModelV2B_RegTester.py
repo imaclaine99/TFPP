@@ -19,14 +19,14 @@ model_id = 4857#   21910   # 16937
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
-for i in range (0,5):
-    for l2 in (0.1, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0.000001, 0):
-        ModelConfig.dense_regulariser = L1L2(l1 = 0, l2 = l2)
+for i in range (0,10):
+    for l1l2 in (10, 3.333, 1.0, 0.3333, 0.1, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0.000001, 0):
+        ModelConfig.dense_regulariser = L1L2(l1 = l1l2, l2 = l1l2)
         model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
         model.myf.EPOCHS = 250
         model.model.summary()
         print('[INFO]' + model.myf.model_description)
-        model.myf.model_description = str(model_id) + ' ReguleriserTest_Exec L2_'+str(l2) + 'Iteration' + str(i)
+        model.myf.model_description = str(model_id) + ' ReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
         model.myf.default_optimizer = ModelConfig.opt
         model.model.summary()
         model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,

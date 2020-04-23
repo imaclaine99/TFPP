@@ -1075,7 +1075,7 @@ def db_update_row (rowDict, success=True):
 
     # EPOCHS, Epochs_Actual
     # Keep Epochs - its the target.
-    #insert_dict.update(EPOCHS= EPOCHS)
+    insert_dict.update(Epochs= EPOCHS)
     #insert_dict.pop('Epochs', None)
 
     insert_dict.update(Epochs_Actual = model_last_epochs)
