@@ -42,6 +42,10 @@ model_best_loss = 999
 model_best_val_acc = 0
 model_best_val_loss= 999
 model_best_combined_ave_loss = 999
+best_guess_acc = 0
+best_guess_loss = 999
+best_guess = 0
+
 model_last_epochs = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
 clear_session = True        # Define whether or not we clear Keras session after fit and plot
@@ -243,6 +247,10 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     global model_best_loss
     global model_best_val_acc
     global model_best_val_loss
+    global model_name_file
+    global best_guess_acc
+    global best_guess_loss
+    global best_guess
 
     # read meta_data from file
     if (metadatafilename != ''):
@@ -315,6 +323,8 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     current_date_time = datetime.datetime.now()
     #model_name_file = __file__.split('\\')
 
+
+
     model_name_file = sys.argv[0].split('\\')
     model_name_file = model_name_file[len(model_name_file)-1].split('/')            # Split for other form of directory delimiter
 #    model_name_file = model_name_file.split('\\//')
@@ -333,6 +343,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     with open(output_summary_logfile,'a') as fd:
         fd.write("%s,%s,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f, %d,%s,%s\n" % (current_date_time, model_name_file, best_guess_acc, best_guess_loss, best_guess, EPOCHS, batch_size, model_best_acc, model_best_loss, model_best_val_acc, model_best_val_loss, model_best_combined_ave_loss,
                                                                   last_exec_duration, platform.node(), model_description))
+
 
 
 def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy', compile = True) -> object:
@@ -1025,6 +1036,66 @@ def db_update_row (rowDict, success=True):
         print ('Full ModelDict follows')
         print (rowDict)
 
+    # Before we copy the Dict, update the new values that may be used elsewhere
+    rowDict.update(model_best_acc=float(model_best_acc))
+    rowDict.update(model_best_loss=float(model_best_loss))
+    rowDict.update(model_best_val_acc=float(model_best_val_acc))
+    rowDict.update(model_best_val_loss=float(model_best_val_loss))
+    rowDict.update(model_best_combined_ave_loss=float(model_best_combined_ave_loss))
+
+    # Update our ExecLog Table with INSERT
+    insert_dict = rowDict.copy()
+    #add extra pieces
+    # Labels NOT in rowDict
+    # DateTime,FileName,BestGuessAcc,BestGuessLoss,BatchSize,ExecDuration,ExecMachine,Description,LayersCombined
+    # Differences
+    # EPOCHS, Epochs_Actual
+    # ColumnsToRemove
+    # Started,Finished,LastUpdate
+
+    # Inconsistent results with / and \ characters - just replace for reliability!
+    model_name_file = sys.argv[0].replace('/', '\\').split('\\')
+    model_name_file = model_name_file[len(model_name_file) - 1]
+
+    import platform
+
+    insert_dict.update(DateTime = datetime.datetime.now())
+    insert_dict.update(FileName = model_name_file)
+    insert_dict.update(BestGuess = best_guess)
+    insert_dict.update(BestGuessAcc = best_guess_acc)
+    insert_dict.update(BestGuessLoss = best_guess_loss)
+    insert_dict.update(BatchSize = batch_size)
+    insert_dict.update(ExecDuration = last_exec_duration)
+    insert_dict.update(ExecMachine = platform.node())
+    insert_dict.update(Description = model_description)
+    insert_dict.update(LayersCombined = str(insert_dict['Layer1']) + str(insert_dict['Layer2']) + str(insert_dict['Layer3']) + str(insert_dict['Layer4']) + str(insert_dict['Layer5']) )
+
+    # Update newly calc'ed values- these have NOT yet been set in the Dict.
+    # Should they??
+
+    # EPOCHS, Epochs_Actual
+    # Keep Epochs - its the target.
+    #insert_dict.update(EPOCHS= EPOCHS)
+    #insert_dict.pop('Epochs', None)
+
+    insert_dict.update(Epochs_Actual = model_last_epochs)
+
+    # Started,Finished,LastUpdate
+    insert_dict.pop('Started', None)
+    insert_dict.pop('Finished', None)
+    insert_dict.pop('LastUpdate', None)
+
+    # Parse Dict to String for Layers
+    insert_dict.update(Layer1 = str(insert_dict['Layer1']))
+    insert_dict.update(Layer2 = str(insert_dict['Layer2']))
+    insert_dict.update(Layer3 = str(insert_dict['Layer3']))
+    insert_dict.update(Layer4 = str(insert_dict['Layer4']))
+    insert_dict.update(Layer5 = str(insert_dict['Layer5']))
+
+    placeholder = ", ".join(["%s"] * len(insert_dict))
+    insert_stmt = "insert into executionlog ({columns}) values ({values});".format(columns=",".join(insert_dict.keys()), values=placeholder)
+    cursor.execute(insert_stmt, list(insert_dict.values()))
+
     cnx.commit()
     cnx.close()
 
@@ -1096,10 +1167,10 @@ def finish_update_row (datafile, row_to_update, success=True):
     if success == False:
         row_to_update['Finished'] = False
         row_to_update['model_best_acc'] = 0
-        row_to_update['model_best_loss'] = 'N/A'
+        row_to_update['model_best_loss'] = 9999     #'N/A'
         row_to_update['model_best_val_acc'] = 0
-        row_to_update['model_best_val_loss'] = 'N/A'
-        row_to_update['model_best_combined_ave_loss'] = 'N/A'
+        row_to_update['model_best_val_loss'] = 9999  #'N/A'
+        row_to_update['model_best_combined_ave_loss'] = 9999   #'N/A'
 
     # create a temporary dictionary from the input file
     with open(tempfilename, mode='r') as infile:
@@ -1133,11 +1204,11 @@ def finish_update_row (datafile, row_to_update, success=True):
             if row == row_to_update:
                 found_row = True
                 row['Finished'] = True
-                row['model_best_acc'] = model_best_acc
-                row['model_best_loss'] = model_best_loss
-                row['model_best_val_acc'] = model_best_val_acc
-                row['model_best_val_loss'] = model_best_val_loss
-                row['model_best_combined_ave_loss'] = model_best_combined_ave_loss
+                row['model_best_acc'] = float(model_best_acc)
+                row['model_best_loss'] = float(model_best_loss)
+                row['model_best_val_acc'] = float(model_best_val_acc)
+                row['model_best_val_loss'] = float(model_best_val_loss)
+                row['model_best_combined_ave_loss'] = float(model_best_combined_ave_loss)
 
             writer.writerow(row)
         return found_row

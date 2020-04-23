@@ -1,18 +1,19 @@
-import MyLSTMModelV2
+import MyLSTMModelV2b
 import MyFunctions
 import ModelV2Config as ModelConfig
 
-modelDict = MyFunctions.read_from_from_db(unique_id=103606)      # 98080
-model = MyLSTMModelV2.MyLSTMModelV2(modelDict)
+modelDict = MyFunctions.read_from_from_db(unique_id=31507)      # 98080
+model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
 model.model.summary()
 
-model.myf.model_description = 'LSTMMModelV2 ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(
+model.myf.model_description = 'LSTMMModelV2b ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(
     modelDict) + ModelConfig.opt
 model.myf.default_optimizer = ModelConfig.opt
 model.model.summary()
-model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule",
-                             model.model,
-                             model.myf.model_description)
+
+model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
+                                          model.myf.model_description, version=2)
+
 
 #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
 model.myf.db_update_row(modelDict)

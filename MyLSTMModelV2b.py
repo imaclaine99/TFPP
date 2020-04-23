@@ -107,7 +107,7 @@ class MyLSTMModelV2b (object):
                 # 1 Layer Dense - Flatten
                 self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
                 self.flattened = True
-                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
             else:
                 if self.flattened == False:
                     # Check if we have any future LSTMs or not.  If we do NOT, flatten now
@@ -118,7 +118,7 @@ class MyLSTMModelV2b (object):
                 if future_lstm == False:
                     self.flattened = True
                     self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
-                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
         elif current_layer['LayerType'] == 'LSTM':
             if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                 return_sequences = True
@@ -159,13 +159,13 @@ class MyLSTMModelV2b (object):
                         if future_lstm == False:
                             self.flattened = True
                             self.model.add(Flatten())
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
                         else:
                             # Add without flattening
-                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser))
+                            self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
                     else:
                         # Add without flattening
-                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu"))
+                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_regularizer=ModelConfig.dense_regulariser))
                elif current_layer['LayerType'] == 'LSTM':
                     if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                         return_sequences = True
