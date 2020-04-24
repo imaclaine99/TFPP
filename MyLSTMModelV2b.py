@@ -107,7 +107,12 @@ class MyLSTMModelV2b (object):
                 # 1 Layer Dense - Flatten
                 self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
                 self.flattened = True
+                if int(current_layer['Nodes']) <= 1:
+                    layer_dropout = 0
+                else:
+                     layer_dropout = ModelConfig.dense_dropout
                 self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
+                self.model.add(Dropout(layer_dropout))
             else:
                 if self.flattened == False:
                     # Check if we have any future LSTMs or not.  If we do NOT, flatten now
@@ -118,7 +123,11 @@ class MyLSTMModelV2b (object):
                 if future_lstm == False:
                     self.flattened = True
                     self.model.add(Flatten(input_shape=(ModelConfig.num_samples, 4)))
+                    layer_dropout = ModelConfig.dense_dropout
+                else:
+                    layer_dropout = 0
                 self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", input_shape=(ModelConfig.num_samples, 4), kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
+                self.model.add(Dropout(layer_dropout))
         elif current_layer['LayerType'] == 'LSTM':
             if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                 return_sequences = True
@@ -160,12 +169,17 @@ class MyLSTMModelV2b (object):
                             self.flattened = True
                             self.model.add(Flatten())
                             self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
+                            if int(current_layer['Nodes']) > 2:       # No dropout if under 2 ^^ 2 nodes
+                                self.model.add(Dropout( ModelConfig.dense_dropout))
                         else:
-                            # Add without flattening
+                            # Add without flattening.  No dropout if future LSTM - doesn't make much sense
                             self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_initializer=ModelConfig.dense_kernel_initialiser, kernel_regularizer=ModelConfig.dense_regulariser))
                     else:
                         # Add without flattening
-                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation="selu", kernel_regularizer=ModelConfig.dense_regulariser))
+                        self.model.add(Dense(2 ** int(current_layer['Nodes']), activation=activation, kernel_regularizer=ModelConfig.dense_regulariser))
+                        if int(current_layer['Nodes']) > 2:       # No dropout if under 2 ^^ 2 nodes
+                            self.model.add(Dropout(ModelConfig.dense_dropout))
+
                elif current_layer['LayerType'] == 'LSTM':
                     if current_layer['ReturnSequences'] == 'True' or current_layer['ReturnSequences'] == True:
                         return_sequences = True
