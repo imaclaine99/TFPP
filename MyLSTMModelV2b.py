@@ -2,6 +2,7 @@ from clr_callback import CyclicLR
 from keras import Sequential, regularizers
 from keras.initializers import RandomNormal
 from keras.layers import Flatten, Dense, Dropout, LSTM
+from keras.layers import GaussianNoise
 from keras.regularizers import L1L2
 import ModelV2Config as ModelConfig
 import csv
@@ -72,6 +73,7 @@ class MyLSTMModelV2b (object):
         self.myf.batch_size = 64 #ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
+        self.myf.early_stopping_min_delta = ModelConfig.early_stopping_min_delta
 #        self.myf.read_backwards = ModelConfig.read_backwards
 #        self.db_read_sort = ModelConfig.db_read_sort
 #        MyFunctions.read_backwards = ModelConfig.read_backwards     # This is messy....
@@ -96,6 +98,8 @@ class MyLSTMModelV2b (object):
     def _model_def(self, configDict):
         self.model = Sequential()
 
+        if ModelConfig.is_input_noise:
+            self.model.add(GaussianNoise(ModelConfig.input_noise, input_shape=(ModelConfig.num_samples, 4)))
         # Layer 1
         current_layer = configDict['Layer1']
 

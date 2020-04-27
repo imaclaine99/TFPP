@@ -931,7 +931,8 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
         elif sort == 'NodesAsc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
-                     "order by TotalNodes asc")
+                     "order by TotalNodes asc "
+                     "LIMIT 1")
         elif sort == 'NodesDesc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
@@ -939,7 +940,7 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
         elif sort == 'Random':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
-                     "order by RAND()")
+                     "order by priority, RAND()")
         query = query + " LIMIT 1"
         cursor.execute(query)
 

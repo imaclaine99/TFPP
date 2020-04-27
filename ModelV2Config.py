@@ -14,6 +14,10 @@ is_dupe_data = False #True   # Experimental
 bias_regulariser = L1L2(l1= 0, l2=0)
 dense_regulariser = L1L2(l1 = 0, l2=0)
 opt = 'Adamax'
+is_input_noise = False
+input_noise = 0.0
+early_stopping_min_delta = 0.005        # More than MyFuncs Default
+
 datafile = r'.\models_to_test2.csv'
 dense_kernel_initialiser = RandomNormal(mean=0, stddev=0.1, seed=None)
 #dense_kernel_initialiser = 'glorot_uniform'

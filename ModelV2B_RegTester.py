@@ -21,7 +21,8 @@ modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
 L1L2Test = False
-dropout_test = True
+dropout_test = False
+NoiseTest = True
 
 if L1L2Test:
     for i in range (0,10):
@@ -30,8 +31,8 @@ if L1L2Test:
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
             model.myf.EPOCHS = 250
             model.model.summary()
-            print('[INFO]' + model.myf.model_description)
             model.myf.model_description = str(model_id) + ' ReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
             model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
@@ -58,6 +59,27 @@ if dropout_test:
             #    myf.save_model(model.model, model.myf.model_description + '.h5')
             model.myf.db_update_row(modelDict)
 
+
+if NoiseTest:
+    for i in range (0,5):
+        for noise in (3.3333, 2, 1.5, 1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0.000001,0.000000333, 0.0000001, 0):
+            ModelConfig.input_noise = noise
+            ModelConfig.is_input_noise = True
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.EPOCHS = 250
+            model.myf.model_description = str(model_id) + ' NoiseTestExec_'+str(noise) + 'Iteration' + str(i)
+            model.model.summary()
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
+
+
+### END HERE
 
 if single_epoch_at_a_time == True:
     infile = ".\parsed_data\\" + '^GDAXI.csv'
