@@ -110,7 +110,7 @@ if new_atr_rule_beta_compare == True:
 
     myf.atr_rule = 3
     for filename in ('^FTSE_2019OHLC.csv', '^GSPC.csv', '^GDAXI.csv', '^STOXX50E_OHLC.csv'):
-        for beta_decay in (0.95, 0.98, 0.99):
+        for beta_decay in ( 0.98, 0.99,0.95,):
            myf.atr_beta_decay = beta_decay
            myf.parse_file(filename, purpose='Train')
 

@@ -9,7 +9,7 @@ use_lrf = False #  True
 batch_size = 16
 dropout = 0.0           #   0.4
 dense_dropout = 0.0     # Not used on the last layer (obviously!)
-buy_or_sell = 'Buy'     # Buy  Sell
+buy_or_sell = 'Sell'     # Buy  Sell
 is_dupe_data = False #True   # Experimental
 bias_regulariser = L1L2(l1= 0, l2=0)
 dense_regulariser = L1L2(l1 = 0, l2=0)

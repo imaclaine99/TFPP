@@ -45,6 +45,7 @@ model_best_combined_ave_loss = 999
 best_guess_acc = 0
 best_guess_loss = 999
 best_guess = 0
+processing_rule = 'BuyV1'     # Only used for logging.  Currently  BuyV1 - 0, 1, 2, 4 ,5.   SellV1.   To do - a range - i.e. prediction of the actual range?  Different loss functions?
 
 model_last_epochs = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
@@ -722,19 +723,21 @@ def parse_file (infilename, purpose='Train'):
              ohlc_np[i, 8] = ohlc_np[i-1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
         # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
 
-
-    # Need to calc the "ATR20" for rows missed in the above...
-        for i in range(end_row, end_row+20-2):
-            ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
-                                abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
-            ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
-
  #       print('Row Done!' + str (i))
         #### TODO :   CAN PROFIT, SELL RULE
 
         # Sell Rule
         if (i < len(ohlc_np) - 20 - 2):
             ohlc_np[i,7] = sell_weighting_rule(ohlc_np, i)
+
+
+    # Need to calc the "ATR20" for rows missed in the above...
+    for i in range(end_row, end_row+20-2):
+        ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
+                            abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
+        ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
+
+
 
     # We have to lose the first and last 20 rows - we don't have valid data for them for Y values or ATR values
 #    for i in range (len(ohlc_np)-20 +1, 20-1-1, -1):
@@ -931,16 +934,22 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
         elif sort == 'NodesAsc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
-                     "order by TotalNodes asc "
-                     "LIMIT 1")
+                     "order by TotalNodes asc")
         elif sort == 'NodesDesc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
                      "order by TotalNodes desc")
         elif sort == 'Random':
-            query = ("SELECT * FROM testmodels "
-                     "where started <> 'True' "
-                     "order by priority, RAND()")
+            if processing_rule in ('Buy', 'BuyV1'):
+                query = ("SELECT * FROM testmodels "
+                         "where started <> 'True' "
+                         "order by priority desc, RAND()")
+            else:
+                query = ("SELECT * FROM testmodels "
+                        "where unique_id not in "
+                        "(select unique_id from tfpp.executionlog el "
+                        "where el.Rule = 'BuyV1') "
+                        "order by priority desc, RAND()")
         query = query + " LIMIT 1"
         cursor.execute(query)
 
@@ -993,49 +1002,57 @@ def db_update_row (rowDict, success=True):
     cursor.execute(query)
     cursor.fetchone()
 
-    rowcount = cursor.execute("""
-        UPDATE testmodels SET Started='True'
-        WHERE unique_id = %s
-    """, (uniqueID,))
+    # Legacy - only use if BuyRule1
+    if processing_rule in ('Buy', 'BuyV1'):
+
+        rowcount = cursor.execute("""
+            UPDATE testmodels SET Started='True'
+            WHERE unique_id = %s
+        """, (uniqueID,))
 
 
 
-    cursor.execute("""
-        UPDATE testmodels SET Finished='True'
-        where unique_id = %s
-    """, (uniqueID,))
+        cursor.execute("""
+            UPDATE testmodels SET Finished='True'
+            where unique_id = %s
+        """, (uniqueID,))
 
 
-    query = ("UPDATE testmodels SET Finished = %s "
-                 "WHERE unique_id = %s")
-    cursor.execute(query, ('True', uniqueID))
+        query = ("UPDATE testmodels SET Finished = %s "
+                     "WHERE unique_id = %s")
+        cursor.execute(query, ('True', uniqueID))
 
-    print ("[INFO] Update DB for unique id " + str(uniqueID) + "with Error Details (if any) : " + str(rowDict['ErrorDetails']))
+        print ("[INFO] Update DB for unique id " + str(uniqueID) + "with Error Details (if any) : " + str(rowDict['ErrorDetails']))
 
 
-    query = ("UPDATE testmodels SET Finished = %s, "
-                 "model_best_acc = %s, "
-                 "model_best_loss = %s, "
-                 "model_best_val_acc = %s, "
-                 "model_best_val_loss = %s, "
-                 "model_best_combined_ave_loss = %s, "
-                 "Epochs = %s,"
-                 "ErrorDetails = %s "
-                 "WHERE unique_id = %s")
+        query = ("UPDATE testmodels SET Finished = %s, "
+                     "model_best_acc = %s, "
+                     "model_best_loss = %s, "
+                     "model_best_val_acc = %s, "
+                     "model_best_val_loss = %s, "
+                     "model_best_combined_ave_loss = %s, "
+                     "Epochs = %s,"
+                     "ErrorDetails = %s "
+                     "WHERE unique_id = %s")
 
-    rowcount = cursor.execute(query, ('True', float(model_best_acc),
-                  float(model_best_loss),
-                  float(model_best_val_acc),
-                  float(model_best_val_loss),
-                  float(model_best_combined_ave_loss),
-                  int(model_last_epochs),
-                  str(rowDict['ErrorDetails']),
-                  uniqueID))
+        rowcount = cursor.execute(query, ('True', float(model_best_acc),
+                      float(model_best_loss),
+                      float(model_best_val_acc),
+                      float(model_best_val_loss),
+                      float(model_best_combined_ave_loss),
+                      int(model_last_epochs),
+                      str(rowDict['ErrorDetails']),
+                      uniqueID))
 
-    if rowcount != 1:
-        print ("[ERROR]: Update Row DB has returned row count of " + str (rowcount))
-        print ('Full ModelDict follows')
-        print (rowDict)
+        if rowcount != 1:
+            print ("[ERROR]: Update Row DB has returned row count of " + str (rowcount))
+            print ('Full ModelDict follows')
+            print (rowDict)
+    # End Legacy
+
+    # Now, we don't actually update the testmodels table at all - all the data will be updated to execution log, which can be sliced and diced as required to get up to date info per rule, etc, etc.
+
+
 
     # Before we copy the Dict, update the new values that may be used elsewhere
     rowDict.update(model_best_acc=float(model_best_acc))
@@ -1070,6 +1087,7 @@ def db_update_row (rowDict, success=True):
     insert_dict.update(ExecMachine = platform.node())
     insert_dict.update(Description = model_description)
     insert_dict.update(LayersCombined = str(insert_dict['Layer1']) + str(insert_dict['Layer2']) + str(insert_dict['Layer3']) + str(insert_dict['Layer4']) + str(insert_dict['Layer5']) )
+    insert_dict.update(Rule = processing_rule)
 
     # Update newly calc'ed values- these have NOT yet been set in the Dict.
     # Should they??
@@ -1085,6 +1103,7 @@ def db_update_row (rowDict, success=True):
     insert_dict.pop('Started', None)
     insert_dict.pop('Finished', None)
     insert_dict.pop('LastUpdate', None)
+    insert_dict.pop('priority', None)
 
     # Parse Dict to String for Layers
     insert_dict.update(Layer1 = str(insert_dict['Layer1']))

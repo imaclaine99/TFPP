@@ -70,6 +70,7 @@ class MyLSTMModelV2b (object):
     def __init__(self, configDict):
         self.num_layers = configDict['Layers']
         self.myf.EPOCHS = ModelConfig.epochs
+        self.myf.processing_rule = ModelConfig.buy_or_sell
         self.myf.batch_size = 64 #ModelConfig.batch_size
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
@@ -203,6 +204,7 @@ class MyLSTMModelV2b (object):
 if __name__ == "__main__":
     import os
 
+    MyFunctions.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
 
     while True:
         #modelDict = MyFunctions.read_row(ModelConfig.datafile)
@@ -218,7 +220,7 @@ if __name__ == "__main__":
             model.model.summary()
 
 
-            model.myf.parse_process_plot_multi_source(infile_array, "BuyWeightingRule", model.model,
+            model.myf.parse_process_plot_multi_source(infile_array, ModelConfig.buy_or_sell + "WeightingRule", model.model,
                                                       model.myf.model_description, version=2)
 
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)

@@ -15,17 +15,17 @@ import ModelV2Config as ModelConfig
 
 
 
-model_id = 4857#   21910   # 16937
+model_id = 14046   #4857#   21910   # 16937    $14046??
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
-L1L2Test = False
-dropout_test = False
+L1L2Test = True
+dropout_test = True
 NoiseTest = True
 
 if L1L2Test:
-    for i in range (0,10):
+    for i in range (0,5):
         for l1l2 in (10, 3.333, 1.0, 0.3333, 0.1, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0.000001, 0):
             ModelConfig.dense_regulariser = L1L2(l1 = l1l2, l2 = l1l2)
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
@@ -42,7 +42,7 @@ if L1L2Test:
             model.myf.db_update_row(modelDict)
 
 if dropout_test:
-    for i in range (0,10):
+    for i in range (0,5):
         for dropout in (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8):
             ModelConfig.dense_dropout = dropout
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
@@ -62,7 +62,7 @@ if dropout_test:
 
 if NoiseTest:
     for i in range (0,5):
-        for noise in (3.3333, 2, 1.5, 1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0.000001,0.000000333, 0.0000001, 0):
+        for noise in (1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0):
             ModelConfig.input_noise = noise
             ModelConfig.is_input_noise = True
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
