@@ -934,11 +934,11 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
         elif sort == 'NodesAsc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
-                     "order by TotalNodes asc")
+                     "order by TotalNodes asc, priority desc")
         elif sort == 'NodesDesc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
-                     "order by TotalNodes desc")
+                     "order by TotalNodes desc, priority desc")
         elif sort == 'Random':
             if processing_rule in ('Buy', 'BuyV1'):
                 query = ("SELECT * FROM testmodels "
