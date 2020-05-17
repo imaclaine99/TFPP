@@ -1,41 +1,54 @@
 import MyLSTMModelV2b
 import MyFunctions as myf
 from keras.regularizers import L1L2
-import ModelV2Config
 
-
-
-# Will use this to test DupeData
-# Let's run against a given model 5 times with and then without Dupe Data - duping ALL data - this should have no impact if it all works
-
+# Sell Rule is not training as well - or more correctly, is training, but not validating well
+# THis will test some ideas to address that
 
 
 
 import ModelV2Config as ModelConfig
 
-ModelConfig.buy_or_sell = 'Buy'         # Override Config, otherwise reporting is wrong!
+ModelConfig.buy_or_sell = 'Sell'         # Override Config, otherwise reporting is wrong!
 
-model_id = 14046   #4857#   21910   # 16937    $14046??
+model_id = 13535   #4857#   21910   # 16937    $14046??
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
-L1L2Test = True
-dropout_test = True
-NoiseTest = True
+DupeDataTest = False
+NewLossTest = True
+dropout_test = False
+NoiseTest = False
 
-if L1L2Test:
-    for i in range (0,1):
-        for l1l2 in ( 0.0000333, 0.00001, 0.00000333, 0.000001, 0,   0.1, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001,  .0000333, .00001):                 # 10, 3.333, 1.0, 0.3333,
-            ModelConfig.dense_regulariser = L1L2(l1 = l1l2, l2 = l1l2)
+if DupeDataTest:
+    for i in range (0,5):
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = True
             model.myf.EPOCHS = 250
             model.model.summary()
-            model.myf.model_description = str(model_id) + ' ReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + 'ModelV2b SellDupeDataData_Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
-            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
+
+if NewLossTest:
+    for i in range (0,5):
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = False
+            model.myf.EPOCHS = 250
+            model.model_loss_func = myf.biased_squared_mean
+            model.model.summary()
+            model.myf.model_description = str(model_id) + 'ModelV2b SellNewLoss_Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
                                                       model.myf.model_description, version=2)
             #if model.myf.model_best_loss < 1.5:
             #    myf.save_model(model.model, model.myf.model_description + '.h5')

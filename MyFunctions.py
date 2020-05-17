@@ -46,6 +46,7 @@ best_guess_acc = 0
 best_guess_loss = 999
 best_guess = 0
 processing_rule = 'BuyV1'     # Only used for logging.  Currently  BuyV1 - 0, 1, 2, 4 ,5.   SellV1.   To do - a range - i.e. prediction of the actual range?  Different loss functions?
+model_loss_func = 'mean_squared_error'          # Define this, to allow other options to be tried.
 
 model_last_epochs = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
@@ -508,7 +509,7 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
 
     import time
     start = time.time()
-    H = compile_and_fit(model, xtrain, ytrain, xtest, ytest, loss='mean_squared_error', optimizer=default_optimizer)
+    H = compile_and_fit(model, xtrain, ytrain, xtest, ytest, loss=model_loss_func, optimizer=default_optimizer)
 #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
     end = time.time()
 
@@ -582,10 +583,10 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
             for file in range (0, len(xtrain)):
                 print ('[INFO] Iteration ' + str(epoch) + ' on file number ' + str(file))
                 if iteration == 0:
-                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file], loss='mean_squared_error', optimizer=default_optimizer)
+                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file], loss=model_loss_func, optimizer=default_optimizer)
                 else:
                     H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file],
-                                         loss='mean_squared_error', optimizer=default_optimizer, compile=False)
+                                         loss=model_loss_func, optimizer=default_optimizer, compile=False)
                 if iteration == 0:
                     My_H = H1
                 else:
@@ -611,7 +612,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
     elif version == 2:
         import time
         start = time.time()
-        H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss='mean_squared_error', optimizer=default_optimizer)
+        H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss=model_loss_func, optimizer=default_optimizer)
         #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
         end = time.time()
 
@@ -1256,6 +1257,30 @@ def dict_to_description(modelDict):
 def load_model (model_filename):
     return keras.models.load_model (models_path + model_filename)
 
+def biased_squared_mean(y_true, y_pred):
+    # The aim of this is to punish FALSE NEGATIVES more than FALSE POSITIVES.
+    # The hypothesis is that this may help in training the SELL rule.  Selling early is less harmful than not selling, so we want to ensure that missing a SELL signal has a stronger weighting
+    # This is not simple, as the y_true and y_pred are Keras tensors (matrices).  Therefore, need to define the formula in a single equation to avoid a complex (and slow) loop...
+
+    # E.g.
+    # DEFAULT MSE Loss = (pred - true) ^ 2
+    # I want
+    #        Loss = if pred > true then (pred - true)^2 / 2
+    #               else (pred - true) ^2
+
+    # Basically - pred greater than true is NOT as bad as true greater than pred...  HOW TO DO THIS??
+    # pred - true     -  positive if pred > true, 0 if same, negative if not
+    # abs of this -
+    # square ot
+
+    diff =  y_true  - y_pred    # Will be positive IF true is ahead of prediction  TRUE.   Negative means the prediction was ahead of true (not as bad).  Positive means true was ahead of prediction (bad)
+
+    square_diff = K.square(diff)
+    final_diff = square_diff + diff         # This is basically RMS, but with extra penalty for being too conservative.
+
+    return K.reduce_mean(final_diff, axis=-1)  # Note the `axis=-1`
+
+
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
 
 
@@ -1277,3 +1302,4 @@ def load_model (model_filename):
 #### PlayPenCode
 #myf.parse_file("DAX4ML.csv")
 #parse_file("^GDAXI.csv")
+
