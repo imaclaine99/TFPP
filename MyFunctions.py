@@ -45,8 +45,10 @@ model_best_combined_ave_loss = 999
 best_guess_acc = 0
 best_guess_loss = 999
 best_guess = 0
+standardised_loss = 999
 processing_rule = 'BuyV1'     # Only used for logging.  Currently  BuyV1 - 0, 1, 2, 4 ,5.   SellV1.   To do - a range - i.e. prediction of the actual range?  Different loss functions?
-model_loss_func = 'mean_squared_error'          # Define this, to allow other options to be tried.
+default_model_loss_func = 'mean_squared_error'
+model_loss_func = default_model_loss_func        # Define this, to allow other options to be tried.
 
 model_last_epochs = 0
 model_executions = 0        # Use this to track how many executions.  Will clear session before creating a new model if > 0  ## Not yet implemented
@@ -62,6 +64,7 @@ default_optimizer = 'Nadam' # Not used if explicity set when called in compile a
                             # Other options:   SGD,   SGD+CLR, Adam, ????.    Need to decide best way to manage tunables for the optimser...
                             # SGD+NM  (Nesterov Momentum), AdamDelta (?)
                             # Do I also want to specific optimizer tunables - e.g. opt_lr, opt_??
+custom_loss_override = False    # Set this to true to turn 'off' custom loss functions, to make them back to MSE.  This is useful to run a final evaluate with MSE for like for like comparisons with different loss functions on test data.
 output_images_path = r'.\\output_images\\'
 models_path =  r'.\\models\\'
 read_backwards  = False     # Default is to read from start to end.
@@ -538,6 +541,8 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
     # TODO: Don't need the random anymore - should change that to reduce TECH DEBT
    # xtrain, xtest, ytrain, ytest, ytrain_rnd, ytest_rnd = parse_data_to_trainXY_plusRandY (infile, output_col)
 
+    global custom_loss_override         # May temporarily change this
+
     xtrain = []
     xtest = []
     ytrain = []
@@ -610,6 +615,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         plot_and_save_history_with_baseline(My_H, EPOCHS * len(xtrain), output_prefix, resolved_meta_filename)      # Multiple EPOCHS by the number of input files.
 
     elif version == 2:
+
         import time
         start = time.time()
         H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss=model_loss_func, optimizer=default_optimizer)
@@ -624,6 +630,34 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         # Due to early learning stopping, need to check
 
         plot_and_save_history_with_baseline(H, EPOCHS, output_prefix, resolved_meta_filename)
+
+    # Do an extra evaluate here with mse as loss function - can be useful and low overhead.
+    global standardised_loss
+
+    if model_loss_func != default_model_loss_func :
+        print ("[INFO] Attempting model loss override bit with re-valuate")
+        prior_loss_override = custom_loss_override
+        custom_loss_override = True     # Override and use MSE, so we can compare
+
+        # Recompile the model, to make sure the new loss setting takes effect.  It may be easier to just reset the loss function here to mse, rather than the complex logic of the 'custom loss override'
+        # I will try this and think about the change.  This would reduce the need for the extra global variable, as well as needing code in each loss function to manage...
+        # Seems like a good idea!
+        model.compile(loss=default_model_loss_func, optimizer=default_optimizer, metrics=['accuracy'])      # This feels a bit hacky...
+        results = model.evaluate(xtest[0], ytest[0], batch_size=batch_size)
+        print(results)
+
+        standardised_loss = results[0]          # Is this correct?  Seems like it should be
+
+        # Change it back - it may not actually be set.  This is a bit of a hack to allow changing of loss function for final eval.
+        custom_loss_override = prior_loss_override
+
+        model.compile(loss=model_loss_func, optimizer=default_optimizer, metrics=['accuracy'])      # Recompile with the setting reversed, just in case it is used again elsewhere.
+    else:
+        # Using default loss function, but do another evaluate (with compile) to ensure a true like for like comparison is possible
+        model.compile(loss=default_model_loss_func, optimizer=default_optimizer, metrics=['accuracy'])      # This feels a bit hacky...
+        results = model.evaluate(xtest[0], ytest[0], batch_size=batch_size)
+        standardised_loss = results[0]          # Is this correct?  Seems like it should be
+
 
     if clear_session == True:
     # Reset Keras Session, to avoid overheads on multiple iterations
@@ -1089,6 +1123,7 @@ def db_update_row (rowDict, success=True):
     insert_dict.update(Description = model_description)
     insert_dict.update(LayersCombined = str(insert_dict['Layer1']) + str(insert_dict['Layer2']) + str(insert_dict['Layer3']) + str(insert_dict['Layer4']) + str(insert_dict['Layer5']) )
     insert_dict.update(Rule = processing_rule)
+    insert_dict.update(standardised_loss = standardised_loss)           # Used to compare between different loss functions that may be used on training
 
     # Update newly calc'ed values- these have NOT yet been set in the Dict.
     # Should they??
@@ -1276,9 +1311,49 @@ def biased_squared_mean(y_true, y_pred):
     diff =  y_true  - y_pred    # Will be positive IF true is ahead of prediction  TRUE.   Negative means the prediction was ahead of true (not as bad).  Positive means true was ahead of prediction (bad)
 
     square_diff = K.square(diff)
+
+    # Turning this off - no longer use this.  Instead, have a mandatory evalute on 'default' loss function post calcluation.  Much cleaner.
+    #if custom_loss_override:
+    #    final_diff = square_diff
+    #else:
     final_diff = square_diff + diff         # This is basically RMS, but with extra penalty for being too conservative.
 
-    return K.reduce_mean(final_diff, axis=-1)  # Note the `axis=-1`
+
+    return K.mean(final_diff, axis=-1)  # Note the `axis=-1`
+
+def biased_squared_mean2(y_true, y_pred):
+    # The aim of this is to punish FALSE NEGATIVES more than FALSE POSITIVES.
+    # The hypothesis is that this may help in training the SELL rule.  Selling early is less harmful than not selling, so we want to ensure that missing a SELL signal has a stronger weighting
+    # This is not simple, as the y_true and y_pred are Keras tensors (matrices).  Therefore, need to define the formula in a single equation to avoid a complex (and slow) loop...
+
+    # E.g.
+    # DEFAULT MSE Loss = (pred - true) ^ 2
+    # I want
+    #        Loss = if pred > true then (pred - true)^2 / 2
+    #               else (pred - true) ^2
+
+    # Basically - pred greater than true is NOT as bad as true greater than pred...  HOW TO DO THIS??
+    # pred - true     -  positive if pred > true, 0 if same, negative if not
+    # abs of this -
+    # square ot
+
+    const = 2
+
+    diff = y_true - y_pred
+    # if custom_loss_override:
+    #     mask = K.less(y_pred, y_true) #i.e. y_pred - y_true < 0
+    #     mask = K.cast(mask, tf.float32)
+    #
+    #     print("[INFO] Loss Override has worked - doing basic mean of square")
+    #     print('[INFO] MSE' + str(K.mean(K.square(diff))) + ' vs new way of : ' + str(K.mean((const - 1) * mask * K.square(diff) + K.square(diff))))
+    #     return K.mean(K.square(diff))
+    # else:
+    print("[INFO] Loss Override not required.  Doing funky calc!")
+
+    mask = K.less(y_pred, y_true) #i.e. y_pred - y_true < 0
+    mask = K.cast(mask, tf.float32)
+    return K.mean((const - 1) * mask * K.square(diff) + K.square(diff))
+    # This is basically 2 x the loss if pred is less than true - i.e. missing a signal, we want to punish.
 
 
 #def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):

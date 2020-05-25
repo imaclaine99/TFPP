@@ -16,10 +16,14 @@ model_id = 13535   #4857#   21910   # 16937    $14046??
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
+
 DupeDataTest = False
-NewLossTest = True
+DupeAndNewLossTest = False
 dropout_test = False
 NoiseTest = False
+ExtraDupeAndNewLossTest = False
+NewLossTest = False
+New2LossTest = True
 
 if DupeDataTest:
     for i in range (0,5):
@@ -37,14 +41,75 @@ if DupeDataTest:
             #    myf.save_model(model.model, model.myf.model_description + '.h5')
             model.myf.db_update_row(modelDict)
 
+if DupeAndNewLossTest:
+    for i in range (0,5):
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = True
+            model.myf.EPOCHS = 250
+            model.myf.model_loss_func = myf.biased_squared_mean
+            model.model.summary()
+            model.myf.model_description = str(model_id) + 'ModelV2b SellDupeDataAndNewLoss_Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
+
+if ExtraDupeAndNewLossTest:
+    for i in range (0,5):
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = True
+            model.myf.dupe_vals = (1, 2, 5, 5, 10, 10)
+
+            model.myf.EPOCHS = 250
+            model.myf.model_loss_func = myf.biased_squared_mean
+            model.model.summary()
+            model.myf.model_description = str(model_id) + 'ModelV2b SellExtraDupeDataAndNewLoss_Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
+
+
+
 if NewLossTest:
     for i in range (0,5):
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
             model.myf.is_dupe_data = False
             model.myf.EPOCHS = 250
-            model.model_loss_func = myf.biased_squared_mean
+            model.myf.model_loss_func = myf.biased_squared_mean
             model.model.summary()
             model.myf.model_description = str(model_id) + 'ModelV2b SellNewLoss_Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+
+            # Now evaluate one more time with the loss function overrided
+            model.myf.custom_loss_override = True
+#            model.model.evaluate()
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
+
+
+
+if New2LossTest:
+    for i in range (0,5):
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = False
+            model.myf.EPOCHS = 250
+            model.myf.model_loss_func = myf.biased_squared_mean2
+            model.model.summary()
+            model.myf.model_description = str(model_id) + 'ModelV2b SellNew2Loss_Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
@@ -293,3 +358,11 @@ if stateful_off_test:
             model.myf.model_description = str(model_id) + 'LSTM Stateful Off Test'
             model.myf.default_optimizer = ModelConfig.opt
             model.myf.parse_process_plot(infile, "BuyWeightingRule", model.model, model.myf.model_description + str(i))
+
+
+
+# How to compare use of different LOSS FUNCTIONS???
+#
+#
+# Idea:  Train as per normal, and at the end, run once on the test set with STANDARD MSE loss function to get a standard number.
+# The idea is that the LOSS function should not affect the model, just how it trains, so this should work okay.
