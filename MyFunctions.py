@@ -967,9 +967,16 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' " )
         elif sort == 'NodesAsc':
-            query = ("SELECT * FROM testmodels "
+            if processing_rule in ('Buy', 'BuyV1'):
+                query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
                      "order by TotalNodes asc, priority desc")
+            else:
+                query = ("SELECT * FROM testmodels "
+                         "where unique_id not in "
+                         "(select unique_id from tfpp.executionlog el "
+                         "where el.Rule = ' + str (processing_rule) +') "
+                         "order by TotalNodes asc, priority desc")
         elif sort == 'NodesDesc':
             query = ("SELECT * FROM testmodels "
                      "where started <> 'True' "
@@ -983,7 +990,7 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
                 query = ("SELECT * FROM testmodels "
                         "where unique_id not in "
                         "(select unique_id from tfpp.executionlog el "
-                        "where el.Rule = 'BuyV1') "
+                        "where el.Rule = ' + str (processing_rule) +') "
                         "order by priority desc, RAND()")
         query = query + " LIMIT 1"
         cursor.execute(query)

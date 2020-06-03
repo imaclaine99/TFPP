@@ -16,14 +16,30 @@ model_id = 13535   #4857#   21910   # 16937    $14046??
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
-
-DupeDataTest = False
-DupeAndNewLossTest = False
+Baseline = True
+DupeDataTest = True
+DupeAndNewLossTest = True
 dropout_test = False
 NoiseTest = False
-ExtraDupeAndNewLossTest = False
-NewLossTest = False
+ExtraDupeAndNewLossTest = True
+NewLossTest = True
 New2LossTest = True
+
+if Baseline:
+    for i in range (0,3):
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.is_dupe_data = False
+            model.myf.EPOCHS = 250
+            model.model.summary()
+            model.myf.model_description = str(model_id) + 'ModelV2b SellBaseline_Iteration' + str(i)
+            print('[INFO]' + model.myf.model_description)
+            model.myf.default_optimizer = ModelConfig.opt
+            model.model.summary()
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "SellWeightingRule", model.model,
+                                                      model.myf.model_description, version=2)
+            #if model.myf.model_best_loss < 1.5:
+            #    myf.save_model(model.model, model.myf.model_description + '.h5')
+            model.myf.db_update_row(modelDict)
 
 if DupeDataTest:
     for i in range (0,5):
