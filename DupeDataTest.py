@@ -1,4 +1,5 @@
 import MyLSTMModelV2
+import MyLSTMModelV2b
 import MyFunctions as myf
 import ModelV2Config
 
@@ -19,8 +20,9 @@ multiple_data_files = False
 new_atr_rule = False
 rule3_reprocess_and_predict = False
 multifile_rule3_reprocess_and_predict = False
-new_atr_rule_beta_compare = True
+new_atr_rule_beta_compare = False
 stateful_off_test = False
+BuyRuleCorrection = True
 
 if dupe == True:
     modelDict = myf.read_from_from_db(
@@ -240,3 +242,49 @@ if stateful_off_test:
             model.myf.model_description = str(model_id) + 'LSTM Stateful Off Test'
             model.myf.default_optimizer = ModelConfig.opt
             model.myf.parse_process_plot(infile, "BuyWeightingRule", model.model, model.myf.model_description + str(i))
+
+
+if BuyRuleCorrection:
+    print('[INFO] Buy Rule Correction Test (Correct Value 2)')
+
+    myf.atr_rule = 3
+    myf.atr_beta_decay = 0.98
+
+    for filename in ('^FTSE_2019OHLC.csv', '^GSPC.csv', '^GDAXI.csv', '^STOXX50E_OHLC.csv'):
+        myf.parse_file(filename, purpose='Train')
+
+    model_id = 14046
+    modelDict = myf.read_from_from_db(
+        unique_id=model_id)
+
+    for i in range(0,3):
+        # Use all 4 files
+        model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+        model.myf.EPOCHS = 250
+        model.myf.processing_rule='BuyFixed'
+        model.model.summary()
+        model.myf.model_description = str(model_id) + ' FixedBuyRule2'  + ' Iteration' + str(i)
+        print('[INFO]' + model.myf.model_description)
+        model.myf.default_optimizer = ModelConfig.opt
+        model.model.summary()
+        model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
+                                                  model.myf.model_description, version=2)
+        # if model.myf.model_best_loss < 1.5:
+        #    myf.save_model(model.model, model.myf.model_description + '.h5')
+        model.myf.db_update_row(modelDict)
+
+        # Use just one  file
+        model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+        model.myf.EPOCHS = 250
+        model.myf.processing_rule='BuyFixed'
+        model.model.summary()
+        model.myf.model_description = str(model_id) + ' FixedBuyRule2SingleFile'  + ' Iteration' + str(i)
+        print('[INFO]' + model.myf.model_description)
+        model.myf.default_optimizer = ModelConfig.opt
+        model.model.summary()
+        model.myf.parse_process_plot_multi_source((".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv',), "BuyWeightingRule", model.model,
+                                                  model.myf.model_description, version=2)
+        # if model.myf.model_best_loss < 1.5:
+        #    myf.save_model(model.model, model.myf.model_description + '.h5')
+        model.myf.db_update_row(modelDict)
+

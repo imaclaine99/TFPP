@@ -25,6 +25,8 @@ from learningratefinder import LearningRateFinder
 import csv          # I use this for writing csv logs
 import mysql.connector
 import time
+import datetime
+from alpha_vantage.timeseries import TimeSeries
 
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
@@ -75,9 +77,13 @@ callbacks = []          # This feels cludgy, but prevents me having to pass ever
 early_stop_callback = True
 early_stopping_min_delta = 0.01
 early_stopping_patience = 10
+debug_with_date = False         # Set this to true, to keep the DATE column from input files up until the train/predict point.
+                                # This is a computational overhead, but helps check what is actually going on.
+                                # IF TRUE, 5 columns are used rather than 4, and at the time of compile_and_fit, the DATE is then removed.
 db_host = '127.0.0.1'
 db_username = 'tfpp'
 db_pwd = 'tfpp'
+key = 'B7WOWYWCP22UNBW6'        # AlphaVantage Key - should move to OS env variable to remove from code
 
 def parsefile(filename, output_column_name, strip_last_row=True):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -96,11 +102,17 @@ def parsefile(filename, output_column_name, strip_last_row=True):
     else:
         end_row = len(infile)
 
-    olhc_data = infile.loc[0:end_row, 'Open':'Close']
+    if debug_with_date:
+        olhc_data = infile.loc[0:end_row, 'Date':'Close']
+        # Convert Date String to Date INTs to make numpy work better (can't figure out how to manage strings in Numpy!!)
+        olhc_data['Date'] = olhc_data['Date'].map (lambda date : int(''.join(c for c in str(date) if c.isdigit())))
+    else:
+        olhc_data = infile.loc[0:end_row, 'Open':'Close']
     output_data = infile[output_column_name]
     output_data = output_data[0:len(olhc_data)]               # Was len(output_data), but changed to end_row to ensure these two keep in sync
+    dates_data = infile.loc[0:end_row, 'Date']                # Optional - and useful
 
-    return olhc_data, output_data
+    return olhc_data, output_data, dates_data
 
 
 def parse_data(olhc_array, results_array, num_samples):
@@ -114,7 +126,14 @@ def parse_data(olhc_array, results_array, num_samples):
     """
     # Now need to create this into a large Xtrain and yTrain Numpy.  Let's just create the Numpy for now, and worry about the Xtrain / Xtest bit later!
 
-    x_train = np.zeros((len(olhc_array) - num_samples + 1, num_samples, 4))  # O H L C
+    if debug_with_date:
+        train_cols = 5
+        x_train = np.zeros((len(olhc_array) - num_samples + 1, num_samples, train_cols))  # O H L C
+    else:
+        train_cols = 4
+        x_train = np.zeros((len(olhc_array) - num_samples + 1, num_samples, train_cols))  # O H L C
+
+#    x_train = np.zeros((len(olhc_array) - num_samples + 1, num_samples, train_cols))  # O H L C
     y_train = np.zeros((len(results_array) - num_samples + 1, 1))  # Only 1 output column for now
 
     for i in range(len(olhc_array) - num_samples + 1):
@@ -142,7 +161,7 @@ def parse_data_to_trainXY(filename, output_column_name, num_samples=250, strip_f
         THe reason for doing this is to compare our model to random data of the EXACT same distribution to validate its effectiveness against what is effectively guessing
         return: trainX, testX, trainY, testY
     """
-    new_method_data, new_method_results = parsefile(filename, output_column_name)
+    new_method_data, new_method_results, dates = parsefile(filename, output_column_name)
     x_train, y_train = parse_data(new_method_data, new_method_results, num_samples)
 
     # I am mixxing my variables here - xtrain and ytrain above and actually data and outcomes - need to fix this later
@@ -361,6 +380,11 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
     global lr_min
     global clr_mode
 
+    # TO DO: CHECK IF debug_with_dates is true, and if so, removed DATE from trainX and testX
+    if debug_with_date:
+        print ('UNHANDLED - DATE COLUMN IN TRAIN DATA - NEED TO REMOVE BEFORE COMPILE AND FIT')
+        exit(-1);
+
     print ("[INFO] About to start with optimizer " + str(optimizer))
 
     if optimizer == 'SGD+CLR':
@@ -506,9 +530,11 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
     meta_filename = infile.split("\\")    # This feels very hacky...
     if output_col == 'SellWeightingRule' :
         resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
-    else:
+    elif output_col == 'BuyWeightingRule':
         resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_meta.csv"
-
+    else:
+        # Not yet implemented - use Sell, as it has higher axis, so avoid chance of missing data
+        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
 
     import time
     start = time.time()
@@ -519,6 +545,8 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
     global last_exec_duration, model_last_epochs
     last_exec_duration = end - start
     model_last_epochs = len(H.history["loss"])
+
+    # TO DO - STANDARDISED LOSS CALC - NOT A HIGH PRIORITY
 
  #   plot_and_save_history_with_rand_baseline(H, H_rnd, 75, output_prefix)
 
@@ -664,41 +692,67 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         K.clear_session()
 
 ###  File Functions
-def parse_file (infilename, purpose='Train'):
+def parse_file (infilename, purpose='Train', prefix=''):
     """
     Reads a CSV file in format of date,open,high,low,close, with optional volume
     Parses this based on defined rules (see below) and writes to the ..\parsed_data\<filename>_parsed.csv
 
-    :param infile: filename, stored in ..\input_data
+    :param infile: filename, stored in ..\input_data   OR  a pandas DataFrame
     ;      purpose: is this for training or eval?  If eval, process ALL rows to the end, and use a different path to avoid issues
+    ;       prefix: useful when parsing in a Pandas - add the prefix to the filename to save it
     :return: true, unless an error
     """
-    infile = pd.read_csv(r".\\input_data\\" + infilename, engine="python")
+
+    # read it in IF its a string - meaning its a filename
+    if isinstance(infilename, str):
+        infile = pd.read_csv(r".\\input_data\\" + infilename, engine="python")
+    else:
+        infile = infilename
+        infile.to_csv(r".\\input_data\\" + prefix+'tempfile.csv', index=True)     # Write it out for reference - no plans to use currently, but may be useful to check
+        infilename = prefix+'tempfile.csv'     # Set a new (temp) filename to write parsed output to
 
     # Need to ignore the last row, as doesn't have a valid indicator.
     # So, we need to build up an array that has # examples of 250 x 4 for XTrain - 250 rows of O H L C (can ignore date)
     # Need to 'slice' the data somehow :)
 
     # Drop Null or other invalid data
-    infile = infile.apply(pd.to_numeric, errors='coerce')
+    #    infile = infile.apply(pd.to_numeric, errors='coerce')
+    # try to convert only the columns we want - Open, High, Low, Close - leave date alone
+    infile['Open'] = pd.to_numeric(infile['Open'], errors='coerce')
+    infile['High'] = pd.to_numeric(infile['High'], errors='coerce')
+    infile['Low'] = pd.to_numeric(infile['Low'], errors='coerce')
+    infile['Close'] = pd.to_numeric(infile['Close'], errors='coerce')
     infile = infile.dropna(subset=['Open', 'Close'])
     infile = infile.reset_index(drop=True)
 
+
+    # COMMENT - 10th JUNE 2020 - This looks to be dropping the last row TOO EARLY.  It is correct to remove it - there cannot be a prediction - but is okay to keep until the end (same as the other 20 rows taht get dropped)
+    # Not a top priority - it just reduces training by one sample...
     if (purpose == 'Train'):
         # We drop the last row - its no use.  We now have the four columns of data we need.  Need to now create this into len-249 samples ready for Keras to process
-        ohlc_data = infile.loc[0:(len(infile) - 2), 'Date':'Close']
+        # ohlc_data = infile.loc[0:(len(infile) - 2), 'Date':'Close']
+        ohlc_data = infile.loc[0:, 'Date':'Close']      # 10th June - no need to filter last row here, is there??
     else:
         ohlc_data = infile.loc[0:(len(infile)), 'Date':'Close']
     ohlc_data.insert(5, "BuyWeightingRule", 0)   # insert 0's.
     ohlc_data.insert(6, "TrueRange", 0)
     ohlc_data.insert(7, "SellWeightRule", 0)    # insert 0's
     ohlc_data.insert(8, "ATR", 0)               # Adding this to calc and maintain ATR.  There are now different rules, so this is the best way to deal with this
+    ohlc_data.insert(9, "P2L_Ratio", 0)
+                    # Add two more - this allows testing of the buy and sell parts separately
+    ohlc_data.insert(10, "P2L_RatioPositive", 0)        # Removes negatives (sets to 0)  - effectively a new buy rule
+    ohlc_data.insert(11, "P2L_RatioNegative", 0)         # Removes positives, and then makes -ve positive - effectively a new sell rule
+    ohlc_data.insert(12, "P2L_RatioNeutral", 0)          # 1 if between 0.5 and 2, else 0
+    ohlc_data.insert(13, "RangeVariance", 0)             # WIP - currently compares the future range vs the ATR.  Is that useful?
+                                                         # May be better to compare the future 20D range with the past 20D range?
+
     # Convert to a numpy
     ohlc_np: numpy = ohlc_data.to_numpy()
-    #print(ohlc_data)
-    #print(ohlc_np)
-    #print(len(ohlc_np))
+
     del ohlc_data           # avoid any mistakes!
+
+    # WE NOW HAVE AN OHLC Numpy array that is created
+    # Next step is to calculate all output values based on the future, and then to normalise based on the ATR value
 
 
     if purpose == 'Train':
@@ -721,6 +775,22 @@ def parse_file (infilename, purpose='Train'):
             near_future_max = 0
             near_future_min = 0
 
+        # True Range and ATR20 - We need this for later processing into percentages.
+        if i == 0:
+            #   ohlc_np[i, 6] = 0
+            ohlc_np[i, 6] = ohlc_np[i, 2] - ohlc_np[
+                i, 3]  # 22nd March - don't use 0 - 0 is less valid than at least using this!!
+            ohlc_np[i, 8] = ohlc_np[i, 6]  # ATR
+        else:
+            #        ohlc_data[i, 6] = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
+            ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
+                                abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
+            ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
+        # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
+
+        # Calc the max - min as a ratio of the ATR20, noting that the first are percentages at this point
+        ohlc_np[i, 13] = (near_future_max - near_future_min) / (ohlc_np[i, 8] / ohlc_np[i, 4])
+
 
         # TODO:  Define a BuyWeightingRuleFunction.  Pass ohlc numpy array, and current row number - this provides maximum flexibility.
             # Question is - what would I pass in?  Probably the np array from i, and let the function figure the rest out...
@@ -728,63 +798,83 @@ def parse_file (infilename, purpose='Train'):
             # Lazy option would be to pass in near
         # Needs the ATR20 before the buy/sell rule though....  do it later :)  Maybe practice a lamda function?
 
-        if near_future_min < -0.03 :          # Changed from 2% to 3%.   Will change to ATR% X 3 or something like that later.  Need to change the order though
- #           ohlc_data.iloc[i,5] = 0          # Don't want to buy if a big drop coming up.  Is this too conservative?
+    # # VERSION 1 BUY RULE
+    #     ### BUY RULE PROCESSING  ####
+    #     if near_future_min < -0.03:  # Changed from 2% to 3%.   Will change to ATR% X 3 or something like that later.  Need to change the order though
+    #         #           ohlc_data.iloc[i,5] = 0          # Don't want to buy if a big drop coming up.  Is this too conservative?
+    #         ohlc_np[i, 5] = 0
+    #     elif near_future_max > 0.10:
+    #         #           ohlc_data[i,5] = 5
+    #         ohlc_np[i, 5] = 5
+    #     elif near_future_max > 0.075:
+    #         #          ohlc_data[i,5] = 4
+    #         ohlc_np[i, 5] = 4
+    #     elif near_future_max > 0.05:
+    #         #        ohlc_data[i,5] = 3
+    #         ohlc_np[i, 5] = 3
+    #     elif near_future_max > 0.02 and near_future_max > abs(
+    #             2 * near_future_min):  # 10th June - added ABS in - was missing before.  This may have hurt training!
+    #         ohlc_np[i, 5] = 2  # May change later - keep same now for consistency and bug checking
+    #     #       ohlc_np[i,5] = 2
+    #     else:
+    #         #            ohlc_data[i,5] = 0
+    #         ohlc_np[i, 5] = 1
+
+
+        ### BUY RULE PROCESSING  ####
+        if near_future_min < -3*atr20 or -near_future_min>near_future_max :          # If min is 3x ATR, don't buy. Also, don't buy if future loss potential is more than future profit potential
             ohlc_np[i,5] = 0
-        elif near_future_max > 0.10 :
+        elif near_future_max > 8*atr20 :
  #           ohlc_data[i,5] = 5
             ohlc_np[i, 5] = 5
-        elif near_future_max > 0.075 :
+        elif near_future_max > 4*atr20 :
   #          ohlc_data[i,5] = 4
             ohlc_np[i, 5] = 4
-        elif near_future_max > 0.05 :
+        elif near_future_max > 3*atr20 :
     #        ohlc_data[i,5] = 3
              ohlc_np[i, 5] = 3
-        elif near_future_max > 0.02 and near_future_max > (2 * near_future_min) :
+        elif near_future_max > 2*atr20 and near_future_max > abs(2 * near_future_min) :        # 10th June - added ABS in - was missing before.  This may have hurt training!
             ohlc_np[i,5] = 2      # May change later - keep same now for consistency and bug checking
      #       ohlc_np[i,5] = 2
         else :
 #            ohlc_data[i,5] = 0
-            ohlc_np[i,5] = 1
+            ohlc_np[i,5] = 1        # Don't trade off a 1 - but may help with training, in that its better than a 0
 
-        #True Range - We need this for later processing into percentages.
-        if i == 0:
-             #   ohlc_np[i, 6] = 0
-             ohlc_np[i, 6] = ohlc_np[i, 2] - ohlc_np[i, 3]         # 22nd March - don't use 0 - 0 is less valid than at least using this!!
-             ohlc_np[i, 8] = ohlc_np[i,6]               # ATR
-        else:
-    #        ohlc_data[i, 6] = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
-             ohlc_np[i, 6] = max (ohlc_np[i,2] - ohlc_np[i,3], abs(ohlc_np[i,2] - ohlc_np[i-1,4]), abs(ohlc_np[i,3] - ohlc_np[i-1,4]))
-             ohlc_np[i, 8] = ohlc_np[i-1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
-        # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
 
- #       print('Row Done!' + str (i))
-        #### TODO :   CAN PROFIT, SELL RULE
+        #### TODO :   CAN PROFIT
 
-        # Sell Rule
+        #### Sell Rule ###
         if (i < len(ohlc_np) - 20 - 2):
-            ohlc_np[i,7] = sell_weighting_rule(ohlc_np, i)
+            sell_weighting_value, p2l_ratio = sell_weighting_rule(ohlc_np, i)
+            ohlc_np[i,7] = sell_weighting_value
+            # Need to add new column for P2L_Ratio
+            ohlc_np[i,9] = math.log(p2l_ratio+0.000001)         # Normalises the value - 0 means P = L.  Log stops outliers.  Ideally should cap, say at +/- 5...
+            ohlc_np[i,10] = ohlc_np[i,9] if (p2l_ratio >= 1) else 0    # Basically 0 if potential for loss greater than profit
+            ohlc_np[i,11] = -ohlc_np[i,9] if (p2l_ratio < 1) else 0    # Basically 0 if potential for loss greater than profit
+            ohlc_np[i,12] = 0 if (p2l_ratio > 2 or p2l_ratio < 0.5) else 1    # Basically 0 if potential for loss greater than profit
 
+    # END OF FIRST LOOP #############
 
-    # Need to calc the "ATR20" for rows missed in the above...
-    for i in range(end_row, end_row+20-2):
-        ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
-                            abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
-        ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
+    if purpose == 'Train':
+        # Need to calc the "ATR20" for rows missed in the above...
+        # WHAT IS THIS NEEDED FOR??  I think these rows are dropped later anyway??
+        for i in range(end_row, end_row+20-2):
+            ohlc_np[i, 6] = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 4]),
+                                abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
+            ohlc_np[i, 8] = ohlc_np[i - 1, 8] * atr_beta_decay + (1 - atr_beta_decay) * ohlc_np[i, 6]
 
 
 
     # We have to lose the first and last 20 rows - we don't have valid data for them for Y values or ATR values
 #    for i in range (len(ohlc_np)-20 +1, 20-1-1, -1):
 
-    atr20 = 0           # Zero this - we calc and use it in the loop below.  Its no longer atr20 either...
+    # 15th March - the above is true for training, but for prediction, need to calculate to the last rows.  Do that now, and strip the data depending on the use case.
+    # NB: This comment seems old??
 
-    # 15th March - the above is true for training, but for prediction, need to calculate to the last row.  Do that now, and strip the data depending on the use case.
+    # Loop to convert the OHLC values to ratios based on the ATR20.  ATR20 is already in ohlc[,8]
     for i in range(len(ohlc_np)-1 , 20 - 1 - 1, -1):
         # Max between H - L, H - Yesterdays Close, Low - Yesterdays Close
 
-
-        #print (i)
         #Work backwards, so we don't overwrite'
         if i == 0:
             ohlc_np[0,1] = 0
@@ -808,12 +898,13 @@ def parse_file (infilename, purpose='Train'):
             # Moving this code - the original atr20 that was here doesn't seem to be used...
 
             if atr_rule == 1:
-                # Calculate the percentages instead of absolute values
+                # Calculate the percentages instead of absolute values, based on HISTORIC values up and INCLUDING today
                 #        atr20 = max (ohlc_data.iloc[i,2] - ohlc_data.iloc[i,3], abs(ohlc_data.iloc[i,2] - ohlc_data.iloc[i-1,3]), abs(ohlc_data.iloc[i,3] - ohlc_data.iloc[i-1,4]))
                 #atr20 = max(ohlc_np[i, 2] - ohlc_np[i, 3], abs(ohlc_np[i, 2] - ohlc_np[i - 1, 3]),
                 #            abs(ohlc_np[i, 3] - ohlc_np[i - 1, 4]))
                 atr20 = mean(ohlc_np[i - 19:i + 1, 6])  # This is basically today working back 20...
             elif atr_rule == 3:
+                # Already calculated - simply re-use the value.
                 atr20 = ohlc_np[i,8]
 
             ohlc_np[i,1] = (ohlc_np[i,1] - ohlc_np[i-1,4])/atr20   #  Subtract yesterdays' close
@@ -826,18 +917,21 @@ def parse_file (infilename, purpose='Train'):
 
 
     # Need to drop coulumn 6 - the ATR.
-    ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.
+#    ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.
+    ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7,9,10,11,12, 13)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.  Keeping 9 - P2L Ratio
 
     if atr_rule > 1:
         infilename = 'Rule' + str(atr_rule) + "_B" + str (atr_beta_decay) + infilename
 
+    ## WHERE TO SAVE IF NO FILENAME????   A TEMP FILE??
+
 #    numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:6], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule', fmt=['%s','%f','%f','%f','%f','%f'], comments='')
     if purpose == 'Train':
-        numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:7], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule', fmt=['%s','%f','%f','%f','%f','%f', '%f'], comments='')
+        numpy.savetxt(".\\parsed_data\\" + infilename , ohlc_np[19:len(ohlc_np)-20 +1,0:12], delimiter=',', header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule,P2LRatio,P2LRatioPositive,P2LRatioNegative,P2LRatioNeutral,RangeVariance', fmt=['%s','%f','%f','%f','%f','%f', '%f', '%f','%f', '%f', '%f', '%f' ], comments='')
     else:
-        numpy.savetxt(".\\parsed_data_full\\" + infilename, ohlc_np[19:, 0:7], delimiter=',',
-                      header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule',
-                      fmt=['%s', '%f', '%f', '%f', '%f', '%f', '%f'], comments='')
+        numpy.savetxt(".\\parsed_data_full\\" + infilename, ohlc_np[19:, 0:12], delimiter=',',
+                      header='Date,Open,High,Low,Close,BuyWeightingRule,SellWeightingRule,P2L_Ratio,P2L_RatioPositive,P2L_RatioNegative,P2L_RatioNeutral,RangeVariance',
+                      fmt=['%s', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%f', '%f'], comments='')
 #    print (ohlc_np           )
     #pd.DataFrame(ohlc_np[19:,0:6]).to_csv(".\\parsed_data\\" + infilename)
 
@@ -935,22 +1029,25 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         max_loss_20d = likely_sell_price_tomorrow_np[0] - min(likely_sell_price_tomorrow_np[1:])
         max_profit_20d = max(likely_sell_price_tomorrow_np[1:]) - likely_sell_price_tomorrow_np[0]
         # remove negatives - they stuff things up!
-        if max_loss_20d < 0:
+        if max_loss_20d <= 0:           # Changed to < to avoid divide by zero and infinity issues
             max_loss_20d = 0.01   # Add the 0.1 to avoid divide by zero errors. 
         if max_profit_20d < 0:
             max_profit_20d = 0.01
         p2l_ratio = (max_profit_20d)/(max_loss_20d)
 
+        # Want to keep the p2l_ratio - may be useful.  Options - return a tuple OR, set the p2l_ratio as a global...
+        # Let's return a tuple, as this is only used in one place.
+
         if p2l_ratio < 0.0001 :
-            return 10
+            return 10, p2l_ratio
         elif p2l_ratio < 0.001 :
-            return 5
+            return 5, p2l_ratio
         elif p2l_ratio < 0.01 :
-            return 2
+            return 2, p2l_ratio
         elif p2l_ratio < 0.1 :
-            return 1
+            return 1, p2l_ratio
         else:
-            return 0
+            return 0, p2l_ratio
 
 def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc
     cnx = mysql.connector.connect(user='tfpp', password='tfpp',
@@ -975,7 +1072,7 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
                 query = ("SELECT * FROM testmodels "
                          "where unique_id not in "
                          "(select unique_id from tfpp.executionlog el "
-                         "where el.Rule = ' + str (processing_rule) +') "
+                         "where el.Rule = '" + str (processing_rule) +"') "
                          "order by TotalNodes asc, priority desc")
         elif sort == 'NodesDesc':
             query = ("SELECT * FROM testmodels "
@@ -990,7 +1087,7 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
                 query = ("SELECT * FROM testmodels "
                         "where unique_id not in "
                         "(select unique_id from tfpp.executionlog el "
-                        "where el.Rule = ' + str (processing_rule) +') "
+                        "where el.Rule = '" + str (processing_rule) +"') "
                         "order by priority desc, RAND()")
         query = query + " LIMIT 1"
         cursor.execute(query)
@@ -1278,7 +1375,7 @@ def finish_update_row (datafile, row_to_update, success=True):
 
 
 def save_model(model, model_filename):
-    model.save(models_path + model_filename)
+    model.save(models_path + processing_rule +'_' + model_filename)     # Added processing rule - help reduce clutter and confusion, although its not yet used consistently...
 
 def dict_to_description(modelDict):
     layers = int(modelDict['Layers'])
@@ -1362,10 +1459,83 @@ def biased_squared_mean2(y_true, y_pred):
     return K.mean((const - 1) * mask * K.square(diff) + K.square(diff))
     # This is basically 2 x the loss if pred is less than true - i.e. missing a signal, we want to punish.
 
+def download_and_parse (symbol):
+    """
 
-#def write_results_summary (H, EPOCHS, output_prefix, resolved_meta_filename):
+    :param symbol: Stock code or index code to download
+    :return: TBC - numpy or PD array.  Or just save parsed data?
+    """
+
+    ts = TimeSeries(key, output_format='pandas')            # key is a global - should be stored / fetched externally
+
+    # Use the ADJUSTED DATA Series.  The unadjusted has strange issues - e.g. Open can equal previous close, and periods where it doesn't align to the longer data series
+    # Using it would likely create significantly weird predictions
+    #daily_data, meta = ts.get_daily(symbol='^GDAXI', outputsize = 'full')
+    daily_data, meta2 = ts.get_daily_adjusted(symbol=symbol, outputsize = 'full')
+
+    daily_data = daily_data[0:500]    # Pair it back a bit
+
+    # Now reverse it
+    daily_data = daily_data[::-1]
+
+    # Convert the date index to a column for consistency
+    daily_data.reset_index(level=0, inplace=True)
+
+    # Rename to max compatible with current syntax
+    daily_data.rename(columns = {'date': 'Date', '1. open': 'Open', '2. high': 'High', '3. low': 'Low','4. close': 'Close','5. volume': 'Volume'}, inplace = True)
+
+    #debug_with_date = True
+    # Does this need to be enabled??  May want to overwrite and reset this??
+
+    global debug_with_date
+    old_val = debug_with_date
+    debug_with_date = True
+    parse_file(daily_data,  purpose='Predict', prefix=symbol+'_')
+    debug_with_date = old_val       # Review this in future, but this forces to keep the Date field in X_Train, which has its uses...  Just need to remove before processing elsewhere
+
+def predict_code_model (symbol, model_file, predictions=1):
+    """
+
+    :param symbol: Symbol to use (e.g. ^GDAXI).  NOTE - data must have been downloaded and CURRENT - not checked (yet) - may add optional date check
+    :param model_file: Filename of model to use - MUST EXIST, and have been trained accordingly.
+    :param predictions: How many values to predict - default is one (the latest)
+    :return: an array of some kind based on DATES, MODEL, and PREDICTION
+    """
+
+    filename = symbol + '_tempfile.csv'
+    global debug_with_date, suffle_date
+    old_val = debug_with_date
+    debug_with_date = True
+    new_method_data, new_method_results, date_labels = parsefile(r'.\\parsed_data_full\\' + filename,
+                                                                     'BuyWeightingRule', strip_last_row=False)      # Not actually using the Rule Column - just use a dummy val
+    shuffle_data = False  # This is real - no shuffling!
+    x_train, y_train = parse_data(new_method_data, new_method_results, processing_range)
+    debug_with_date = old_val
+
+    # Load a model, and then use it against current data - let's see what it predicts!
+    model = load_model(model_file)
 
 
+
+    # Check the date is the correct one!
+    last_date = x_train[-1, processing_range - 1, 0]
+
+    # If the last date is TODAY'S DATE - we need to remove it.  IF TODAY, IT MEANS THE MARKET IS OPEN AND WE HAVE A PARTIAL RECORD
+    if (last_date == datetime.datetime.now().strftime("%Y%m%d%000000")):
+        x_train = x_train[0:-1]
+        y_train = y_train[0:-1]
+        last_date = x_train[-1, processing_range - 1, 0]
+
+    print('[INFO]: Last Date that we are processing for is: ' + str(last_date))
+
+    results = []
+    for i in range(len(x_train) - 1, len(x_train) - predictions - 1, -1):
+        new_predictions = model.predict(x_train[i:i+1, 0:, 1:])         # i:i+1 gives one sample, but ensures its in 3 dimensions, as needed by predict
+                                                                        # 0 is all rows in the sample, and 1: filters out the Date which we're carrying
+        #        results.append (DATE, MODEL, PREDICTIONS)
+        results.append ([x_train[i, processing_range - 1, 0], model_file, new_predictions[0,0]])        # In future, may want to preserve an array here - but for now, keep single value
+
+    return results
 
 ## Some test code
 #model = Sequential()

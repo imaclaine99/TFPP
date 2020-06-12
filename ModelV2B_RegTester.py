@@ -26,7 +26,7 @@ NoiseTest = True
 
 if L1L2Test:
     for i in range (0,1):
-        for l1l2 in ( 0.0000333, 0.00001, 0.00000333, 0.000001, 0,   0.1, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001,  .0000333, .00001):                 # 10, 3.333, 1.0, 0.3333,
+        for l1l2 in ( 0.0000333, 0.00001, 0.00000333, 0.000001, 0,  0.00333, 0.001,0.000333, .0001,  .0000333, .00001):                 # 10, 3.333, 1.0, 0.3333, 0.1, 0.0333, 0.01,
             ModelConfig.dense_regulariser = L1L2(l1 = l1l2, l2 = l1l2)
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
             model.myf.EPOCHS = 250

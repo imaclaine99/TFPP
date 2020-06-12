@@ -6,6 +6,7 @@ import sys
 model_id = 23194
 myf.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
 
+
 #while True:
     # modelDict = MyFunctions.read_row(ModelConfig.datafile)
 modelDict = myf.read_from_from_db(unique_id=model_id)
@@ -15,13 +16,15 @@ modelDict = myf.read_from_from_db(unique_id=model_id)
 try:
     model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
 
+    model.myf.processing_rule = ModelConfig.buy_or_sell     # Is this needed??
+#    model.myf.debug_with_date = True   - Seems to be working okay (up to plotting at least!).  Need to get dates back into other files
     model.myf.model_description = 'LSTMMModelV2b_ATR3_BetaTBCRetest ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
     model.myf.default_optimizer = ModelConfig.opt
     model.model.summary()
 
     model.myf.EPOCHS = 500      # Increased for extra time, especially given stopping if not improvement
     model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 10     # Allow more tolerance to continue
-    early_stopping_patience = 25                                                     # Allow more tolerance to continue
+    model.myf.early_stopping_patience = 50                                                     # Allow more tolerance to continue
     model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, ModelConfig.buy_or_sell + "WeightingRule", model.model,
                                               model.myf.model_description, version=2)
 

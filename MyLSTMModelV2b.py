@@ -219,14 +219,18 @@ if __name__ == "__main__":
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
 
+            if ModelConfig.buy_or_sell[:3] == 'Buy':
+                rule_column = 'Buy'
+            else:
+                rule_column = 'Sell'
 
-            model.myf.parse_process_plot_multi_source(infile_array, ModelConfig.buy_or_sell + "WeightingRule", model.model,
+            model.myf.parse_process_plot_multi_source(infile_array, rule_column + "WeightingRule", model.model,
                                                       model.myf.model_description, version=2)
 
             #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
             model.myf.db_update_row(modelDict)      # Use the myf from the model to make sure we get the relevant global values.  This may explain some strange behaviour with updates not working...
             if model.myf.model_best_loss < 1.5:
-                model.myf.save_model(model.model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
+                model.myf.save_model(model.model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers_' +ModelConfig.buy_or_sell + '.h5')
         except:
             print("Oops!", sys.exc_info()[0], "occurred.")
             print('Occurred with configDict:')
@@ -235,58 +239,4 @@ if __name__ == "__main__":
 #            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
             MyFunctions.db_update_row(modelDict, False)
 
-
-
-
-
-
-
-
-
-
-
-    start_layer = 1             #  Same as no sequences if only 1 layer
-    start_layer1_nodes = 7
-
-
-    for layers in (1,2, 3, 4, 5)      :
-        if layers < start_layer :
-            continue
-        for nodes1 in range(1, node_iterations)    :
-            if (layers == start_layer) and (nodes1 < start_layer1_nodes) :
-                continue
-            for nodes2 in range(1, node_iterations):
-                if layers < 2 and nodes2 > 1 or nodes2 > nodes1:
-                    continue
-                for nodes3 in range(1, node_iterations):
-                    if layers < 3 and nodes3 > 1 or nodes3 > nodes2 :
-                        continue
-                    for nodes4 in range(1, node_iterations):
-                        if layers < 4 and nodes4 > 1 or nodes4 > nodes3:
-                            continue
-                        for nodes5 in range(1, node_iterations):
-                            if layers < 5 and nodes5 > 1 or nodes5 > nodes4:
-                                continue
-                            for opt in ( 'Adadelta',  'Adamax'):          # Removed , 'SGD+CLR' - it's not working properly - not worth the time right now to figure out what/why
-                                                                                             # Also removed 'Adam', 'SGD+NM', 'Nadam'
-                                model = MyLSTMModelV1b(layers, [2 ** nodes1, 2 ** nodes2, 2 ** nodes3, 2 ** nodes4, 2 ** nodes5])
-
-                                print (layers)
-                                print ([2**nodes1, 2**nodes2, 2**nodes3, 2**nodes4, 2**nodes5])
-                                model.model.summary()
-
-                                if buy_or_sell == 'Buy':
-                                    model.myf.model_description = 'LSTMMModelV1b ' + buy_or_sell + ' Rule - 0.0 Dropout 0.25 TestRatio NoDupeData' + opt
-                                    model.myf.default_optimizer = opt
-                                    model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "BuyWeightingRule", model.model,
-                                                           "LTSM_Model1bBuy_ NoDrop_NoDupeData" + opt + "_" + str(layers) + " layers and " + str(
-                                                               nodes1) + ", " + str(nodes2) + ", " + str(
-                                                               nodes3) + ", " + str(nodes4) + ", " + str(nodes5) + ", ")
-
-
-                                else:
-                                    model.myf.model_description = 'LSTMMModelV1b Sell Rule - No Dropout No CLR+LRF 0.25 TestRatio NoDupeData' + opt
-                                    model.myf.default_optimizer = opt
-                                    model.myf.parse_process_plot(".\parsed_data\^GDAXI.csv", "SellWeightingRule", model.model,
-                                                           "LTSM_Model1bSell_ NoDrop_NoDupeData" + opt + "_" + str(layers) + " layers and " + str(nodes1) + ", "+ str(nodes2) + ", "+ str(nodes3) + ", "+ str(nodes4) + ", "+ str(nodes5) + ", ")
 

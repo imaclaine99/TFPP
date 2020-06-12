@@ -11,19 +11,21 @@ import ModelV2Config as ModelConfig
 
 ModelConfig.buy_or_sell = 'Sell'         # Override Config, otherwise reporting is wrong!
 
-model_id = 13535   #4857#   21910   # 16937    $14046??
+model_id = 29840 #13535   #4857#   21910   # 16937    $14046??
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
 
-Baseline = True
-DupeDataTest = True
-DupeAndNewLossTest = True
+Baseline = False
+DupeDataTest = False
+DupeAndNewLossTest = False
 dropout_test = False
 NoiseTest = False
-ExtraDupeAndNewLossTest = True
-NewLossTest = True
-New2LossTest = True
+ExtraDupeAndNewLossTest = False
+NewLossTest = False
+New2LossTest = False
+new_p2l_rule = True
+
 
 if Baseline:
     for i in range (0,3):
@@ -173,6 +175,31 @@ if NoiseTest:
             model.myf.db_update_row(modelDict)
 
 
+
+if new_p2l_rule == True:
+    print ('NEW ATR RULE TESTING')
+    filename = '^GDAXI.csv'
+    myf.atr_rule = 3
+    myf.parse_file(filename, purpose='Train')
+    infile = ".\parsed_data\Rule3_B0.98^GDAXI.csv"
+    for rule in ( 'RangeVariance', 'P2LRatioPositive', 'P2LRatioNegative', 'P2LRatioNeutral','P2LRatio'):
+        ModelConfig.buy_or_sell = rule      # Used for reporting purposes
+        xtrain, xtest, ytrain, ytest = myf.parse_data_to_trainXY(infile, rule)
+        for i in range(0, 2):
+            print ('[INFO] Rule: ' + rule + ' Iteration: ' + str(i))
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.EPOCHS = 200
+            model.myf.early_stopping_patience = 25
+            model.myf.is_dupe_data = False
+            model.model.summary()
+            model.myf.model_description =  str(model_id) + ' P2L Target Test' + rule
+            model.myf.default_optimizer = ModelConfig.opt
+            model.myf.parse_process_plot(infile, rule, model.model, model.myf.model_description+"Iteration" + str(i))
+            if model.myf.model_best_loss < 1.5:
+                myf.save_model(model.model, rule+'_' +str(model_id) + '_Iteration' + str(i) + '.h5')
+
+            model.myf.db_update_row(modelDict)      # Should move this into parse_process_plot...  Can't, because that doesn't take the modelDict...
+
 ### END HERE
 
 if single_epoch_at_a_time == True:
@@ -212,30 +239,6 @@ if multiple_data_files == True:
             model.myf.parse_process_plot_multi_source(infile_array, "BuyWeightingRule", model.model, model.myf.model_description + "Iteration" + str(i))
             if model.myf.model_best_loss < 1.5:
                 myf.save_model(model.model, 'ATRRule' + str(myf.atr_rule) + '_45044_Iteration' + str(i) + '.h5')
-
-
-if new_atr_rule == True:
-    print ('NEW ATR RULE TESTING')
-    filename = '^GDAXI.csv'
-    myf.atr_rule = 3
-    myf.atr_beta_decay = 0.99
-    myf.parse_file(filename, purpose='Train')
-    filename = '^GDAXI_Now.csv'
-    myf.atr_rule = 3
-    myf.parse_file(filename, purpose='Train')
-    infile = ".\parsed_data\Rule3^GDAXI.csv"
-    xtrain, xtest, ytrain, ytest = myf.parse_data_to_trainXY(infile, 'BuyWeightingRule')
-    modelDict = myf.read_from_from_db(unique_id=45044)  #
-    for i in range(0, 5):
-        model = MyLSTMModelV2.MyLSTMModelV2(modelDict)
-        model.myf.EPOCHS = 100
-        model.myf.is_dupe_data = False
-        model.model.summary()
-        model.myf.model_description = '45044 ATR Rule 3 Beta99'
-        model.myf.default_optimizer = ModelConfig.opt
-        model.myf.parse_process_plot(infile, "BuyWeightingRule", model.model, model.myf.model_description+"Iteration" + str(i))
-        if model.myf.model_best_loss < 1.5:
-            myf.save_model(model.model, 'NewATRRule3_45044_Iteration' + str(i) + '.h5')
 
 if new_atr_rule_beta_compare == True:
     multi_file_version = 2
