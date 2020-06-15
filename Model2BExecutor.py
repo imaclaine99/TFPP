@@ -3,9 +3,20 @@ import MyFunctions as myf
 import ModelV2Config as ModelConfig
 import sys
 
-model_id = 23194
+model_id = 37618
 myf.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
 
+##  37618
+# 32750
+# 9844
+# 14046
+# 36366
+# 33283
+# 4214
+# 4121
+# 4359
+##
+# 29840
 
 #while True:
     # modelDict = MyFunctions.read_row(ModelConfig.datafile)
@@ -18,20 +29,25 @@ try:
 
     model.myf.processing_rule = ModelConfig.buy_or_sell     # Is this needed??
 #    model.myf.debug_with_date = True   - Seems to be working okay (up to plotting at least!).  Need to get dates back into other files
-    model.myf.model_description = 'LSTMMModelV2b_ATR3_BetaTBCRetest ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
+    model.myf.model_description = 'LSTMMModelV2b_ATR3_Beta98Retest ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
     model.myf.default_optimizer = ModelConfig.opt
     model.model.summary()
 
     model.myf.EPOCHS = 500      # Increased for extra time, especially given stopping if not improvement
     model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 10     # Allow more tolerance to continue
-    model.myf.early_stopping_patience = 50                                                     # Allow more tolerance to continue
-    model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, ModelConfig.buy_or_sell + "WeightingRule", model.model,
+    model.myf.early_stopping_patience = 50                                           # Allow more tolerance to continue
+    if ModelConfig.buy_or_sell[:3] == 'Buy':
+        rule_column = 'Buy'
+    else:
+        rule_column = 'Sell'
+
+    model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, rule_column + "WeightingRule", model.model,
                                               model.myf.model_description, version=2)
 
     #model.myf.finish_update_row(ModelConfig.datafile, modelDict)
     model.myf.db_update_row(modelDict)      # Use the myf from the model to make sure we get the relevant global values.  This may explain some strange behaviour with updates not working...
     if model.myf.model_best_loss < 1.5:
-        model.myf.save_model(model.model, str(modelDict['unique_id']) +'_'+str(modelDict['Layers'])+'_Layers.h5')
+        model.myf.save_model(model.model, str(modelDict['unique_id']) + '_' + str(modelDict['Layers']) + '_Layers_' + ModelConfig.buy_or_sell + '.h5')
 
 except:
     print("Oops!", sys.exc_info()[0], "occurred.")

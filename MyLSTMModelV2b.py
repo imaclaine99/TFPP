@@ -215,7 +215,7 @@ if __name__ == "__main__":
         try:
             model = MyLSTMModelV2b(modelDict)
 
-            model.myf.model_description = 'LSTMMModelV2b_ATR3_BetaTBC ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
+            model.myf.model_description = 'LSTMMModelV2b_ATR3_Beta98 ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
 

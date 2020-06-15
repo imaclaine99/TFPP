@@ -821,26 +821,27 @@ def parse_file (infilename, purpose='Train', prefix=''):
     #         ohlc_np[i, 5] = 1
 
 
+        atr20 = ohlc_np[i, 8]/ohlc_np[i,4]      # Divide by close to get to a percentage
         ### BUY RULE PROCESSING  ####
         if near_future_min < -3*atr20 or -near_future_min>near_future_max :          # If min is 3x ATR, don't buy. Also, don't buy if future loss potential is more than future profit potential
             ohlc_np[i,5] = 0
-        elif near_future_max > 8*atr20 :
+        elif near_future_max > 8*atr20 and near_future_max > -1 * 8 * near_future_min:
  #           ohlc_data[i,5] = 5
             ohlc_np[i, 5] = 5
-        elif near_future_max > 4*atr20 :
+        elif near_future_max > 4*atr20 and near_future_max > -1 * 4 * near_future_min:
   #          ohlc_data[i,5] = 4
             ohlc_np[i, 5] = 4
-        elif near_future_max > 3*atr20 :
+        elif near_future_max > 3*atr20 and near_future_max > -1 * 3 * near_future_min:
     #        ohlc_data[i,5] = 3
              ohlc_np[i, 5] = 3
         elif near_future_max > 2*atr20 and near_future_max > abs(2 * near_future_min) :        # 10th June - added ABS in - was missing before.  This may have hurt training!
             ohlc_np[i,5] = 2      # May change later - keep same now for consistency and bug checking
      #       ohlc_np[i,5] = 2
-        else :
+        elif near_future_max > -1 * near_future_min :
 #            ohlc_data[i,5] = 0
             ohlc_np[i,5] = 1        # Don't trade off a 1 - but may help with training, in that its better than a 0
-
-
+        else:
+            ohlc_np[i, 5] = 0
         #### TODO :   CAN PROFIT
 
         #### Sell Rule ###
@@ -1459,7 +1460,7 @@ def biased_squared_mean2(y_true, y_pred):
     return K.mean((const - 1) * mask * K.square(diff) + K.square(diff))
     # This is basically 2 x the loss if pred is less than true - i.e. missing a signal, we want to punish.
 
-def download_and_parse (symbol):
+def download_and_parse (symbol, samples = 500):
     """
 
     :param symbol: Stock code or index code to download
@@ -1473,7 +1474,7 @@ def download_and_parse (symbol):
     #daily_data, meta = ts.get_daily(symbol='^GDAXI', outputsize = 'full')
     daily_data, meta2 = ts.get_daily_adjusted(symbol=symbol, outputsize = 'full')
 
-    daily_data = daily_data[0:500]    # Pair it back a bit
+    daily_data = daily_data[0:samples]    # Pair it back a bit
 
     # Now reverse it
     daily_data = daily_data[::-1]
@@ -1493,21 +1494,21 @@ def download_and_parse (symbol):
     parse_file(daily_data,  purpose='Predict', prefix=symbol+'_')
     debug_with_date = old_val       # Review this in future, but this forces to keep the Date field in X_Train, which has its uses...  Just need to remove before processing elsewhere
 
-def predict_code_model (symbol, model_file, predictions=1):
+def predict_code_model (parsed_filename, model_file, predictions=1, expected_col = 'BuyWeightingRule'):
     """
 
     :param symbol: Symbol to use (e.g. ^GDAXI).  NOTE - data must have been downloaded and CURRENT - not checked (yet) - may add optional date check
     :param model_file: Filename of model to use - MUST EXIST, and have been trained accordingly.
-    :param predictions: How many values to predict - default is one (the latest)
-    :return: an array of some kind based on DATES, MODEL, and PREDICTION
+    :param predictions: How many values to predict - default is one (the latest).  0 means do ALL
+    :return: an array of some kind based on DATES, MODEL, EXPECTED and PREDICTION  (EXPECTED MAY NOT EXIST, but is useful for back testing on new data)
     """
 
-    filename = symbol + '_tempfile.csv'
-    global debug_with_date, suffle_date
+    #filename = symbol + '_tempfile.csv'
+    global debug_with_date, shuffle_data
     old_val = debug_with_date
     debug_with_date = True
-    new_method_data, new_method_results, date_labels = parsefile(r'.\\parsed_data_full\\' + filename,
-                                                                     'BuyWeightingRule', strip_last_row=False)      # Not actually using the Rule Column - just use a dummy val
+    new_method_data, new_method_results, date_labels = parsefile(r'.\\parsed_data_full\\' + parsed_filename,
+                                                                     expected_col, strip_last_row=False)      # Not actually using the Rule Column - just use a dummy val
     shuffle_data = False  # This is real - no shuffling!
     x_train, y_train = parse_data(new_method_data, new_method_results, processing_range)
     debug_with_date = old_val
@@ -1521,19 +1522,23 @@ def predict_code_model (symbol, model_file, predictions=1):
     last_date = x_train[-1, processing_range - 1, 0]
 
     # If the last date is TODAY'S DATE - we need to remove it.  IF TODAY, IT MEANS THE MARKET IS OPEN AND WE HAVE A PARTIAL RECORD
-    if (last_date == datetime.datetime.now().strftime("%Y%m%d%000000")):
+    if (last_date == datetime.datetime.now().strftime("%Y%m%d000000")):
         x_train = x_train[0:-1]
         y_train = y_train[0:-1]
         last_date = x_train[-1, processing_range - 1, 0]
 
     print('[INFO]: Last Date that we are processing for is: ' + str(last_date))
 
+    if predictions == 0:
+        predictions = len(x_train)       # Do ALL.  Need to check if there's any filtering to do, but that should have happened in the parseing already??
+
     results = []
     for i in range(len(x_train) - 1, len(x_train) - predictions - 1, -1):
         new_predictions = model.predict(x_train[i:i+1, 0:, 1:])         # i:i+1 gives one sample, but ensures its in 3 dimensions, as needed by predict
                                                                         # 0 is all rows in the sample, and 1: filters out the Date which we're carrying
-        #        results.append (DATE, MODEL, PREDICTIONS)
-        results.append ([x_train[i, processing_range - 1, 0], model_file, new_predictions[0,0]])        # In future, may want to preserve an array here - but for now, keep single value
+        expected_value = y_train[i][0]                                     # Keep this - may be useful
+        #        results.append (DATE, MODEL, EXPECTED, PREDICTIONS)
+        results.append ([x_train[i, processing_range - 1, 0], model_file, expected_value, new_predictions[0,0]])        # In future, may want to preserve an array here - but for now, keep single value
 
     return results
 

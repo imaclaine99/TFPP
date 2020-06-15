@@ -263,7 +263,7 @@ if BuyRuleCorrection:
         model.myf.EPOCHS = 250
         model.myf.processing_rule='BuyFixed'
         model.model.summary()
-        model.myf.model_description = str(model_id) + ' FixedBuyRule2'  + ' Iteration' + str(i)
+        model.myf.model_description = str(model_id) + ' FixedBuyRule3'  + ' Iteration' + str(i)
         print('[INFO]' + model.myf.model_description)
         model.myf.default_optimizer = ModelConfig.opt
         model.model.summary()
@@ -278,7 +278,7 @@ if BuyRuleCorrection:
         model.myf.EPOCHS = 250
         model.myf.processing_rule='BuyFixed'
         model.model.summary()
-        model.myf.model_description = str(model_id) + ' FixedBuyRule2SingleFile'  + ' Iteration' + str(i)
+        model.myf.model_description = str(model_id) + ' FixedBuyRule3SingleFile'  + ' Iteration' + str(i)
         print('[INFO]' + model.myf.model_description)
         model.myf.default_optimizer = ModelConfig.opt
         model.model.summary()

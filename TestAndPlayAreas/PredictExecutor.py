@@ -14,8 +14,8 @@ import ModelV2Config
 # 3. This is somewhat separate, but a means to do more training on new data.  This doesn't need to be run daily, but needs to be able to be run.
 
 
-
-myf.download_and_parse('^GDAXI')
+# Comment the below out - AV seems to be having an issue - weekend??
+#myf.download_and_parse('^GDAXI')
 
 # Now what do I want?
 # Function that:
@@ -25,21 +25,41 @@ myf.download_and_parse('^GDAXI')
 # Runs N predictions
 # Returns this is an array
 
-predictions = myf.predict_code_model ('^GDAXI', '31204_5_Layers.h5', predictions=1)
+#predictions = myf.predict_code_model ('^GDAXI', '31204_5_Layers.h5', predictions=1)
 
+#parsed_filename = '^GDAXI_tempfile.csv'
+parsed_filename = '^GDAXI_Now.csv'
+myf.parse_file(parsed_filename, purpose='Predict')
+
+
+predictions = myf.predict_code_model (parsed_filename, 'BuyV2_29856_5_Layers.h5', predictions=0)
 print (predictions)
 
-predictions = myf.predict_code_model ('^GDAXI', '31204_5_Layers.h5', predictions=10)
-print (predictions)
-
-predictions = []
-for model_file in ('31204_5_Layers.h5', 'RangeVariance_29840_Iteration1.h5', 'RangeVariance_29840_Iteration0.h5', '29840_5_Layers.h5', '37618_5_Layers.h5'):
-    predictions = predictions + myf.predict_code_model('^GDAXI', model_file, predictions=10)
+#predictions = []
+#for model_file in ('31204_5_Layers.h5', 'RangeVariance_29840_Iteration1.h5', 'RangeVariance_29840_Iteration0.h5', '29840_5_Layers.h5', '37618_5_Layers.h5'):
+#    predictions = predictions + myf.predict_code_model('^GDAXI', model_file, predictions=10)
 
 for i in predictions:
     print (i)
 
+# Write output somewhere
+import numpy
+predictions_np = numpy.asarray(predictions, dtype='O')          # dtype O allows savetxt to work better for some reason...
+
+numpy.savetxt(".\\predictions_data\\" + parsed_filename, predictions_np, delimiter=',',
+              header='Date,Model,Expected,Predicated',
+              fmt=['%f', '%s', '%f', '%f'],
+              comments='')
+
 exit(0);
+
+# Now - what if we want to write the prediction out?
+# Probably don't want to write to the current file - that could be a pain.  How about a new file - Date, TargetValue, PredictedValue?
+# Only problem here is that at this level, I don't have the x/y train data, so would need to reparse it.  That's not too hard, and would have the dates to X Ref.
+x_train, y_train = myf.parsefile(r'.\\input_data\\' + '^GDAXI_Now.csv',strip_last_row=False)
+
+
+
 
 # OLD CODE HERE - THIS IS WORKING SPACE
 
