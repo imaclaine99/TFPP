@@ -2,6 +2,7 @@ import MyLSTMModelV2b
 import MyFunctions as myf
 import ModelV2Config
 
+import mysql.connector
 
 # The sequence here needs to be:
 #
@@ -25,15 +26,61 @@ import ModelV2Config
 # Runs N predictions
 # Returns this is an array
 
+# 22nd June
+# Given there are challenges in getting good quality data over extended timeframes, it makes sense to store data locally, and add to it daily.
+# This splits the task of getting volume of data vs the need for current data.
+# The model will be as follows:
+# a. DB Table that stores OHLCV history with dates
+# b. The above can be updated however makes sense
+# c. Function to get up to date data, and save as a local .csv file
+# d. Function to upload the csv into the DB - flag any duplicates that are not identical
+# e. Then need a function that extracts from this - i.e. update the current predict_code_model to read from a DB rather than from a file
+
+# Status:
+# a - DONE - note - may want another table to match codes with code aliases?
+# b - Needs a two step process, due to formatting challenges - e.g. having SYMBOL field, DATE formatting, etc.
+#   - So, use a temp table, and then insert/update from there
+# c - Need a new data source - 12 months is FINE!!
+
 #predictions = myf.predict_code_model ('^GDAXI', '31204_5_Layers.h5', predictions=1)
 
-#parsed_filename = '^GDAXI_tempfile.csv'
-parsed_filename = '^GDAXI_Now.csv'
+# Daily process - say at 9am
+# 1 - Select all UNIQUE codes from prediction_pairs
+# 2 - For each of these, download and store data
+# 3 - For each prediction_pairs, run prediction
+
+cnx = myf.get_db_connection()
+cursor = cnx.cursor(dictionary=True)
+
+qry = ("select distinct symbol from prediction_pairs ")
+cursor.execute(qry);
+rows = cursor.fetchall()
+
+for symbol in rows:
+    myf.download_to_db(symbol['symbol'])        # Step 1
+    myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+
+qry = ("select * from prediction_pairs ")
+cursor.execute(qry);
+rows = cursor.fetchall()
+
+for row in rows:
+    print (row)
+    parsed_filename = row['Symbol'] + '_tempfile.csv'  # This comes from the above
+    predictions = myf.predict_code_model (parsed_filename, row['Model'] + '.h5', predictions=1)
+    qry = ("insert ignore into predictions values (%s, %s, %s, %s, %s)")
+    cursor.execute(qry, (row['Symbol'], "%.0f" %(predictions[0][0]), row['Model'], float(predictions[0][3]), myf.processing_range));
+
+
+cnx.commit()
+cnx.close()
+#parsed_filename = '^GDAXI_Now.csv'
 myf.parse_file(parsed_filename, purpose='Predict')
 
+model_for_prediction = 'BuyV3_30694_5_Layers_BuyV3'
 
-predictions = myf.predict_code_model (parsed_filename, 'BuyV2_29856_5_Layers.h5', predictions=0)
-print (predictions)
+predictions = myf.predict_code_model (parsed_filename, model_for_prediction + '.h5', predictions=0)
+#print (predictions)
 
 #predictions = []
 #for model_file in ('31204_5_Layers.h5', 'RangeVariance_29840_Iteration1.h5', 'RangeVariance_29840_Iteration0.h5', '29840_5_Layers.h5', '37618_5_Layers.h5'):
@@ -46,7 +93,7 @@ for i in predictions:
 import numpy
 predictions_np = numpy.asarray(predictions, dtype='O')          # dtype O allows savetxt to work better for some reason...
 
-numpy.savetxt(".\\predictions_data\\" + parsed_filename, predictions_np, delimiter=',',
+numpy.savetxt(".\\predictions_data\\" + model_for_prediction + '_' + parsed_filename, predictions_np, delimiter=',',
               header='Date,Model,Expected,Predicated',
               fmt=['%f', '%s', '%f', '%f'],
               comments='')

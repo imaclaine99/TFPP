@@ -3,11 +3,11 @@ import MyFunctions as myf
 import ModelV2Config as ModelConfig
 import sys
 
-model_id = 37618
+model_id = 9844
 myf.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
 
-##  37618
-# 32750
+##
+#
 # 9844
 # 14046
 # 36366
@@ -16,7 +16,8 @@ myf.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
 # 4121
 # 4359
 ##
-# 29840
+# , , ,
+# V3 Done: 37618, 32750, 29840, 36598, 33283
 
 #while True:
     # modelDict = MyFunctions.read_row(ModelConfig.datafile)
@@ -25,11 +26,14 @@ modelDict = myf.read_from_from_db(unique_id=model_id)
 #    break;
 
 try:
+#    ModelConfig.dense_kernel_initialiser = 'glorot_normal'
+   # ModelConfig.dense_kernel_initialiser = 'lecun_normal'
+
     model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
 
     model.myf.processing_rule = ModelConfig.buy_or_sell     # Is this needed??
 #    model.myf.debug_with_date = True   - Seems to be working okay (up to plotting at least!).  Need to get dates back into other files
-    model.myf.model_description = 'LSTMMModelV2b_ATR3_Beta98Retest ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
+    model.myf.model_description = 'LSTMMModelV2b_ATR3_Beta98Retest_' + str(ModelConfig.dense_kernel_initialiser).split(" ")[0].replace("<","") + ' ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(modelDict) + ModelConfig.opt
     model.myf.default_optimizer = ModelConfig.opt
     model.model.summary()
 
@@ -61,7 +65,7 @@ except:
 #############
 
 
-
+exit(1)
 
 # Load a model, and then use it against current data - let's see what it predicts!
 model = myf.load_model('31204_5_Layers.h5')
@@ -75,7 +79,7 @@ filename = '^GDAXI_Now.csv'
 myf.parse_file(filename,  purpose='Predict')
 
 
-new_method_data, new_method_results = myf.parsefile(r'.\\parsed_data_full\\' + filename, 'BuyWeightingRule', strip_last_row=False)
+new_method_data, new_method_results,dates_data = myf.parsefile(r'.\\parsed_data_full\\' + filename, 'BuyWeightingRule', strip_last_row=False)
 x_train, y_train = myf.parse_data(new_method_data, new_method_results, ModelV2Config.num_samples)
 
 

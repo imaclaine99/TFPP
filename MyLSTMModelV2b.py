@@ -25,8 +25,8 @@ infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" +
 
 
 # Should move this to MyFunctions later
-from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
+# from tf.keras.backend.tensorflow_backend import set_session
 physical_devices = tf.config.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -75,6 +75,8 @@ class MyLSTMModelV2b (object):
         self.myf.use_lrf = ModelConfig.use_lrf
         self.myf.is_dupe_data = ModelConfig.is_dupe_data
         self.myf.early_stopping_min_delta = ModelConfig.early_stopping_min_delta
+        self.myf.early_stopping_patience = ModelConfig.early_stopping_patience
+
 #        self.myf.read_backwards = ModelConfig.read_backwards
 #        self.db_read_sort = ModelConfig.db_read_sort
 #        MyFunctions.read_backwards = ModelConfig.read_backwards     # This is messy....
@@ -139,7 +141,7 @@ class MyLSTMModelV2b (object):
             else:
                 return_sequences = False
                 self.flattened = True           # Return sequences of False implies this - prevent adding another FLatten
-            self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))
+            self.model.add(LSTM(2 ** int(current_layer['Nodes']), input_shape=(ModelConfig.num_samples, 4), return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser, kernel_regularizer=ModelConfig.kernel_regulariser))
             # Not yet using the OverFitting Helper Variable - will consider that later.
         else:
             self.error = 'Unknown Layer Type on Layer 1'
@@ -191,7 +193,7 @@ class MyLSTMModelV2b (object):
                     else:
                         return_sequences = False
                         self.flattened = True       # LSTM without return sequences effectively flattens
-                    self.model.add(LSTM(2 ** int(current_layer['Nodes']),  return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser))              # Removed input_shape=(ModelConfig.num_samples, 4),  # that should only be used in the first layer
+                    self.model.add(LSTM(2 ** int(current_layer['Nodes']),  return_sequences=return_sequences, dropout=ModelConfig.dropout, bias_regularizer=ModelConfig.bias_regulariser, kernel_regularizer=ModelConfig.kernel_regulariser))              # Removed input_shape=(ModelConfig.num_samples, 4),  # that should only be used in the first layer
                     # Not yet using the OverFitting Helper Variable - will consider that later.
                else:
                     self.error = 'Unknown Layer Type on Layer # ' + str(layer) + ' ' + str(current_layer)

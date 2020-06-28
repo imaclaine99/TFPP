@@ -11,7 +11,7 @@ from keras.layers.core import Dense
 from keras.layers.core import Flatten
 from keras.layers.core import Dropout
 from clr_callback import CyclicLR
-from keras.callbacks.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping
 from keras import backend as K
 from keras import optimizers
 import tensorflow as tf
@@ -26,7 +26,10 @@ import csv          # I use this for writing csv logs
 import mysql.connector
 import time
 import datetime
-from alpha_vantage.timeseries import TimeSeries
+import yfinance
+#from alpha_vantage.timeseries import TimeSeries
+#from sqlalchemy import create_engine
+
 
 # Set some default values, which can be overridden if wanted
 EPOCHS = 50
@@ -84,6 +87,8 @@ db_host = '127.0.0.1'
 db_username = 'tfpp'
 db_pwd = 'tfpp'
 key = 'B7WOWYWCP22UNBW6'        # AlphaVantage Key - should move to OS env variable to remove from code
+# pk_816e897106fd485da3c89ac4ae06dfc7 IEX
+
 
 def parsefile(filename, output_column_name, strip_last_row=True):
     """ Simple function to take a file with OHLC data, as well as an output / target column.  Returns two arrays - one of the OHLC, one of the target
@@ -385,8 +390,6 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
         print ('UNHANDLED - DATE COLUMN IN TRAIN DATA - NEED TO REMOVE BEFORE COMPILE AND FIT')
         exit(-1);
 
-    print ("[INFO] About to start with optimizer " + str(optimizer))
-
     if optimizer == 'SGD+CLR':
         optimizer = 'SGD'
         if clr_mode == 'None':
@@ -401,6 +404,7 @@ def compile_and_fit(model: object, trainX: object, trainY: object, testX: object
    #     optimizer = optimizers.Adadelta()
 
     print ("[INFO] About to start with optimizer " + str(optimizer))
+    print ("[INFO] Model Description: " + model_description)
 
     # This allows us to use this function iteratively, but only compile the first time
     if (compile):
@@ -1050,10 +1054,13 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         else:
             return 0, p2l_ratio
 
-def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc
-    cnx = mysql.connector.connect(user='tfpp', password='tfpp',
+def get_db_connection ():
+    return mysql.connector.connect(user=db_username, password=db_pwd,
                                   host=db_host,
                                   database='tfpp')
+
+def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc
+    cnx = get_db_connection()
 
     cursor = cnx.cursor(dictionary=True)
 
@@ -1126,9 +1133,9 @@ def db_update_row (rowDict, success=True):
 
     for db_connect_loop in range(1,24*12):
         try:
-            cnx = mysql.connector.connect(user='tfpp', password='tfpp',
-                                          host=db_host,
-                                          database='tfpp')
+            cnx = get_db_connection()  #mysql.connector.connect(user=db_username, password=db_pwd,
+                                     #     host=db_host,
+                                     #     database='tfpp')
             break
         except:
             print ('[INFO: DB Connect Error on try number ' + str(db_connect_loop))
@@ -1376,7 +1383,7 @@ def finish_update_row (datafile, row_to_update, success=True):
 
 
 def save_model(model, model_filename):
-    model.save(models_path + processing_rule +'_' + model_filename)     # Added processing rule - help reduce clutter and confusion, although its not yet used consistently...
+    model.save(models_path + processing_rule +'_' + str(processing_range) + '_' + model_filename)     # Added processing rule - help reduce clutter and confusion, although its not yet used consistently...
 
 def dict_to_description(modelDict):
     layers = int(modelDict['Layers'])
@@ -1459,6 +1466,95 @@ def biased_squared_mean2(y_true, y_pred):
     mask = K.cast(mask, tf.float32)
     return K.mean((const - 1) * mask * K.square(diff) + K.square(diff))
     # This is basically 2 x the loss if pred is less than true - i.e. missing a signal, we want to punish.
+
+def download_to_db (symbol, period='2y'):
+    """
+        Download data from YFinance and store in DB.
+        Also checks for inconsistencies with existing history (excluding volume), ignoring decial places
+    :param symbol: Ticker code
+    :param period: YFinance compatible period - 2 years default
+    :return:
+    """
+
+
+    sqlEngine = create_engine('mysql+mysqlconnector://' + db_username +  ':'+ db_pwd + '@' + db_host + '/tfpp',   pool_recycle=3600)
+
+    ## Download from Yahoo
+    gdaxi = yfinance.Ticker(symbol)
+    #hist = gdaxi.history(period="max")
+    hist = gdaxi.history(period=period)
+
+    # Check if we have today's data - if so, we remove
+    from datetime import date
+
+    if hist.index[-1] == pd.Timestamp(date.today()):
+        # This means we have today's data in the download - either this is COB in the current TZ (okay), but let's assume its new partial data and remove it
+        hist = hist.iloc[0:-1,]
+
+
+    # Upload to temp table
+    hist.to_sql("temp_price_table", con=sqlEngine, if_exists='replace')
+
+    # execute SQL to upate main table from temp table
+    cnx = get_db_connection()
+    cursor = cnx.cursor(dictionary=True)
+
+    qry = ("insert ignore into pricedatadaily (Symbol, Date, Open, High, Low, Close, Volume) "     
+           "select '^GDAXI', Date, Open, High, Low, Close, Volume from temp_price_table; " )
+    rowcount = cursor.execute(qry);
+
+    print("[INFO] " + str(cursor.rowcount) + " rows were inserted from temp table")
+
+    # Check that there are no anomalies - i.e. differences between data
+    qry = ("SELECT Date, Open, High, Low, Close, Volume from temp_price_table " 
+            "where not exists "
+            "(select Date from pricedatadaily "
+            "where symbol = '" + symbol + "' " 
+            "and date = temp_price_table.date "
+            " and truncate(pricedatadaily.open, 0) =  truncate(temp_price_table.open, 0) "
+            " and truncate(close, 0) =  truncate(temp_price_table.close, 0) "
+            " and truncate(high, 0) =  truncate(temp_price_table.high, 0) "
+            " and truncate(low, 0) =  truncate(temp_price_table.low, 0) "
+            #"  -- and volume =  temp_price_table.volume
+            " ); ")
+
+    cursor.execute(qry);
+    rows = cursor.fetchall()
+    cnx.commit()
+    cnx.close()
+
+    if len(rows) > 0:
+        print('[ERROR] rowcount of ' + str(rowcount) + ' when checking for value differences - NEED TO INVESTIGATE')
+        exit(-1)
+
+def parse_from_db (symbol, records=500):
+    """
+        Extracts records from pricedataaily table, saves as tmp_csv, and then parses ready for processing
+
+    :param symbol:
+    :param records:
+    :return:
+    """
+
+    # Step 1 - Run SQL to extract and store in a PD
+    sqlEngine = create_engine('mysql+mysqlconnector://' + db_username + ':' + db_pwd + '@' + db_host + '/tfpp',
+                              pool_recycle=3600)
+    records = pd.read_sql("""
+            select * from 
+            (SELECT * FROM tfpp.pricedatadaily
+            where symbol = '^GDAXI'
+            order by date desc
+            limit 500
+            ) t
+            order by date asc""", sqlEngine)
+
+    print (records)
+    # Step 2 - call parse_file
+    global debug_with_date
+    old_val = debug_with_date
+    debug_with_date = True
+    parse_file(records,  purpose='Predict', prefix=symbol+'_')
+    debug_with_date = old_val       # Review this in future, but this forces to keep the Date field in X_Train, which has its uses...  Just need to remove before processing elsewhere
 
 def download_and_parse (symbol, samples = 500):
     """
