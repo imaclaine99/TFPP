@@ -20,9 +20,14 @@ MyFunctions.db_pwd = ModelConfig.db_pwd
 # Use more selective Permutation Creator
 # To Do -ATR Rule, Multi File, Epochs
 
-infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" + 'Rule3^STOXX50E_OHLC.csv',
-                ".\parsed_data\\" + 'Rule3_B0.98^FTSE_2019OHLC.csv', ".\parsed_data\\" + 'Rule3_B0.98^GSPC.csv')
+#infile_array = (".\parsed_data\\" + 'Rule3_B0.98^GDAXI.csv', ".\parsed_data\\" + 'Rule3^STOXX50E_OHLC.csv',
+#                ".\parsed_data\\" + 'Rule3_B0.98^FTSE_2019OHLC.csv', ".\parsed_data\\" + 'Rule3_B0.98^GSPC.csv')
 
+fileprefix = ''     # Used to manage different locations
+infile_array = ("./" + fileprefix+ "parsed_data/" + 'Rule3_B0.98^GDAXI.csv', "." + fileprefix+ "parsed_data/" + 'Rule3^STOXX50E_OHLC.csv',
+                "./" + fileprefix+ "parsed_data/" + 'Rule3_B0.98^FTSE_2019OHLC.csv', "." + fileprefix+ "parsed_data/" + 'Rule3_B0.98^GSPC.csv')
+
+MyFunctions.output_images_path = fileprefix + MyFunctions.output_images_path
 
 # Should move this to MyFunctions later
 import tensorflow as tf

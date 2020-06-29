@@ -103,7 +103,7 @@ if dropout_test:
 
 if NoiseTest:
     for i in range (0,5):
-        for noise in (1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01, 0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0):
+        for noise in (0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0, 1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01):
             ModelConfig.input_noise = noise
             ModelConfig.is_input_noise = True
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)

@@ -2,6 +2,7 @@ from math import trunc
 
 import sys
 import os
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
@@ -70,8 +71,8 @@ default_optimizer = 'Nadam' # Not used if explicity set when called in compile a
                             # SGD+NM  (Nesterov Momentum), AdamDelta (?)
                             # Do I also want to specific optimizer tunables - e.g. opt_lr, opt_??
 custom_loss_override = False    # Set this to true to turn 'off' custom loss functions, to make them back to MSE.  This is useful to run a final evaluate with MSE for like for like comparisons with different loss functions on test data.
-output_images_path = r'.\\output_images\\'
-models_path =  r'.\\models\\'
+output_images_path = r'./output_images/'
+models_path =  r'./models/'
 read_backwards  = False     # Default is to read from start to end.
 callbacks = []          # This feels cludgy, but prevents me having to pass everything around...
                         # Can be used for both CLR as well as LRF callbacks.  Just need to make sure this is handled properly
@@ -95,7 +96,7 @@ def parsefile(filename, output_column_name, strip_last_row=True):
         Strips the last row, as this can't have a target (will be undefined)
         May want to strip the first row in some cases = e.g. percantage based input
     """
-    infile = pd.read_csv(filename, engine="python")
+    infile = pd.read_csv(Path(filename), engine="python")
 
     # So, we need to build up an array that has # examples of 250 x 4 for XTrain - 250 rows of O H L C (can ignore date)
     # Need to 'slice' the data somehow :)
@@ -231,7 +232,7 @@ def plot_and_save_history(history, epochs, filename):
     plt.xlabel("Epoch #")
     plt.ylabel("Loss/Accuracy")
     plt.legend()
-    plt.savefig(output_images_path + filename)
+    plt.savefig(Path(output_images_path + filename))
     plt.close()
 
 def plot_and_save_history_with_rand_baseline(history, history_rand_baseline, epochs, filename):
@@ -256,7 +257,7 @@ def plot_and_save_history_with_rand_baseline(history, history_rand_baseline, epo
     plt.ylabel("Loss/Accuracy")
     plt.axes().set_ylim([0, 10])        # Set max Y axis to 10.   This may need to change, but works for now.
     plt.legend()
-    plt.savefig(filename)
+    plt.savefig(Path(filename))
     plt.close()
 
 
@@ -319,7 +320,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
         accuracy_multiplier = 1
 
     # No longer needed, as the path is set elsewhere
-    plot_filename = filename.split('\\')
+    plot_filename = filename.split('/')
     plot_filename = plot_filename[len(plot_filename)-1]
 
     # Due to early stopping, epochs may be less than intended.  Use the history to calculate the epochs
@@ -344,7 +345,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
     plt.ylabel("Loss/Accuracy")
     plt.axes().set_ylim([0, max_y_axis])        # Set max Y axis to 10.   This may need to change, but works for now.
     plt.legend()
-    plt.savefig(output_images_path + filename + ".png")             # 10/2/2020 - added .png, as this is now needed?
+    plt.savefig(Path(output_images_path + filename + ".png"))             # 10/2/2020 - added .png, as this is now needed?
     plt.close()
 
     # Write Summary Data
@@ -354,7 +355,7 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
 
 
 
-    model_name_file = sys.argv[0].split('\\')
+    model_name_file = sys.argv[0].split('/')
     model_name_file = model_name_file[len(model_name_file)-1].split('/')            # Split for other form of directory delimiter
 #    model_name_file = model_name_file.split('\\//')
     model_name_file = model_name_file[len(model_name_file)-1]
@@ -531,14 +532,14 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
 
 #    model_rnd = keras.models.clone_model(model)
 
-    meta_filename = infile.split("\\")    # This feels very hacky...
+    meta_filename = infile.split("/")    # This feels very hacky...
     if output_col == 'SellWeightingRule' :
-        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
+        resolved_meta_filename = "./" + meta_filename[1] + "/meta/" + meta_filename[2] + "_sell_meta.csv"
     elif output_col == 'BuyWeightingRule':
-        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_meta.csv"
+        resolved_meta_filename = "./" + meta_filename[1] + "/meta/" + meta_filename[2] + "_meta.csv"
     else:
         # Not yet implemented - use Sell, as it has higher axis, so avoid chance of missing data
-        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
+        resolved_meta_filename = "./" + meta_filename[1] + "/meta/" + meta_filename[2] + "_sell_meta.csv"
 
     import time
     start = time.time()
@@ -598,11 +599,11 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
     # No meta data - multiple files!  However, take it from the 0th file, just to ensure don't break the plot function
     # 1st April 2020 - this actually works well - we TEST on the first file only, but TRAIN on all 4 files
 
-    meta_filename = infile_array[0].split("\\")    # This feels very hacky...
+    meta_filename = infile_array[0].split("/")    # This feels very hacky...
     if output_col == 'SellWeightingRule' :
-        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_sell_meta.csv"
+        resolved_meta_filename = "./" + meta_filename[1] + "/meta/" + meta_filename[2] + "_sell_meta.csv"
     else:
-        resolved_meta_filename = ".\\" + meta_filename[1] + "\\meta\\" + meta_filename[2] + "_meta.csv"
+        resolved_meta_filename = "./" + meta_filename[1] + "/meta/" + meta_filename[2] + "_meta.csv"
 
     global last_exec_duration
     if version == 1:
@@ -709,10 +710,10 @@ def parse_file (infilename, purpose='Train', prefix=''):
 
     # read it in IF its a string - meaning its a filename
     if isinstance(infilename, str):
-        infile = pd.read_csv(r".\\input_data\\" + infilename, engine="python")
+        infile = pd.read_csv(Path("./input_data/" + infilename), engine="python")
     else:
         infile = infilename
-        infile.to_csv(r".\\input_data\\" + prefix+'tempfile.csv', index=True)     # Write it out for reference - no plans to use currently, but may be useful to check
+        infile.to_csv(Path("./input_data/" + prefix+'tempfile.csv'), index=True)     # Write it out for reference - no plans to use currently, but may be useful to check
         infilename = prefix+'tempfile.csv'     # Set a new (temp) filename to write parsed output to
 
     # Need to ignore the last row, as doesn't have a valid indicator.
@@ -1383,7 +1384,7 @@ def finish_update_row (datafile, row_to_update, success=True):
 
 
 def save_model(model, model_filename):
-    model.save(models_path + processing_rule +'_' + str(processing_range) + '_' + model_filename)     # Added processing rule - help reduce clutter and confusion, although its not yet used consistently...
+    model.save(Path(models_path + processing_rule +'_' + str(processing_range) + '_' + model_filename))     # Added processing rule - help reduce clutter and confusion, although its not yet used consistently...
 
 def dict_to_description(modelDict):
     layers = int(modelDict['Layers'])
@@ -1402,7 +1403,7 @@ def dict_to_description(modelDict):
 
 
 def load_model (model_filename):
-    return keras.models.load_model (models_path + model_filename)
+    return keras.models.load_model (Path(models_path + model_filename))
 
 def biased_squared_mean(y_true, y_pred):
     # The aim of this is to punish FALSE NEGATIVES more than FALSE POSITIVES.

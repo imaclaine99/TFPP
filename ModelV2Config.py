@@ -26,11 +26,12 @@ datafile = r'.\models_to_test2.csv'
 #dense_kernel_initialiser = 'glorot_normal'
 dense_kernel_initialiser = 'lecun_normal'
 db_host = '199.244.51.253' #'192.168.0.109'
+#db_host = '192.168.0.109'
 db_username = 'tfpp'
 db_pwd = 'qQwWeErRtT123123!@'
+#db_pwd = 'tfpp'
 
-
-gpu = True
+gpu = False
 if (gpu):
     db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
     disableGPU = False
