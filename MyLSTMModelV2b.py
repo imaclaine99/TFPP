@@ -24,8 +24,8 @@ MyFunctions.db_pwd = ModelConfig.db_pwd
 #                ".\parsed_data\\" + 'Rule3_B0.98^FTSE_2019OHLC.csv', ".\parsed_data\\" + 'Rule3_B0.98^GSPC.csv')
 
 fileprefix = ''     # Used to manage different locations
-infile_array = ("./" + fileprefix+ "parsed_data/" + 'Rule3_B0.98^GDAXI.csv', "." + fileprefix+ "parsed_data/" + 'Rule3^STOXX50E_OHLC.csv',
-                "./" + fileprefix+ "parsed_data/" + 'Rule3_B0.98^FTSE_2019OHLC.csv', "." + fileprefix+ "parsed_data/" + 'Rule3_B0.98^GSPC.csv')
+infile_array = ["./parsed_data/" + 'Rule3_B0.98^GDAXI.csv', "./parsed_data/" + 'Rule3^STOXX50E_OHLC.csv',
+                "./parsed_data/" + 'Rule3_B0.98^FTSE_2019OHLC.csv', "./parsed_data/" + 'Rule3_B0.98^GSPC.csv']
 
 MyFunctions.output_images_path = fileprefix + MyFunctions.output_images_path
 
@@ -208,10 +208,56 @@ class MyLSTMModelV2b (object):
         if configDict[last_layer]['LayerType'] == 'LSTM' and (configDict[last_layer]['ReturnSequences'] == 'True' or configDict[last_layer]['ReturnSequences'] == True  ) and self.flattened == False:
             self.model.add(Flatten())
 
+    def doProcessing(self):
+        MyFunctions.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
+        for i in range(0, len(infile_array)):
+            infile_array[i] = fileprefix + infile_array[i]
+            print(infile_array[i])
+
+        while True:
+            # modelDict = MyFunctions.read_row(ModelConfig.datafile)
+            modelDict = MyFunctions.read_from_from_db(ModelConfig.db_read_sort)
+            if modelDict == None:
+                break;
+
+            try:
+                model = MyLSTMModelV2b(modelDict)
+
+                model.myf.model_description = 'LSTMMModelV2b_ATR3_Beta98 ' + ModelConfig.buy_or_sell + model.myf.dict_to_description(
+                    modelDict) + ModelConfig.opt
+                model.myf.default_optimizer = ModelConfig.opt
+                model.model.summary()
+
+                if ModelConfig.buy_or_sell[:3] == 'Buy':
+                    rule_column = 'Buy'
+                else:
+                    rule_column = 'Sell'
+
+                model.myf.parse_process_plot_multi_source(infile_array, rule_column + "WeightingRule", model.model,
+                                                          model.myf.model_description, version=2)
+
+                # model.myf.finish_update_row(ModelConfig.datafile, modelDict)
+                model.myf.db_update_row(
+                    modelDict)  # Use the myf from the model to make sure we get the relevant global values.  This may explain some strange behaviour with updates not working...
+                if model.myf.model_best_loss < 1.5:
+                    model.myf.save_model(model.model, str(modelDict['unique_id']) + '_' + str(
+                        modelDict['Layers']) + '_Layers_' + ModelConfig.buy_or_sell + '.h5')
+            except:
+                print("Oops!", sys.exc_info()[0], "occurred.")
+                print('Occurred with configDict:')
+                print(modelDict)
+                modelDict['ErrorDetails'] = sys.exc_info()[0]
+                #            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
+                MyFunctions.db_update_row(modelDict, False)
+
+
 if __name__ == "__main__":
     import os
 
     MyFunctions.processing_rule = ModelConfig.buy_or_sell  # Yes - this is very messy...
+    for i in range(0,len(infile_array)):
+        infile_array[i] = fileprefix + infile_array[i]
+        print (infile_array[i])
 
     while True:
         #modelDict = MyFunctions.read_row(ModelConfig.datafile)
