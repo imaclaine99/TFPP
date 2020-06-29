@@ -31,7 +31,7 @@ db_username = 'tfpp'
 db_pwd = 'qQwWeErRtT123123!@'
 #db_pwd = 'tfpp'
 
-gpu = False
+gpu = True
 if (gpu):
     db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
     disableGPU = False

@@ -50,15 +50,17 @@ if LSTM_L1L2Test:
 
             with tpu_strategy.Scope():
                 model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+                model.myf.model_description = str(model_id) + ' BuyV3LSTM_KernelReguleriserTest_Exec L1L2_' + str(
+                    l1l2) + 'Iteration' + str(i)
+                model.myf.default_optimizer = ModelConfig.opt
+                model.myf.EPOCHS = 500  # Increased for extra time, especially given stopping if not improvement
+                model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 2  # Allow more tolerance to continue
+                model.myf.early_stopping_patience = 25  # Allow more tolerance to continue
+                model.myf.compile_model(model, myf.model_loss_func, ModelConfig.opt)
 
-            model.myf.EPOCHS = 500  # Increased for extra time, especially given stopping if not improvement
-            model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 2  # Allow more tolerance to continue
-            model.myf.early_stopping_patience = 25  # Allow more tolerance to continue
 
             model.model.summary()
-            model.myf.model_description = str(model_id) + ' BuyV3LSTM_KernelReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
-            model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
             model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
                                                       model.myf.model_description, version=2)

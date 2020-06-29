@@ -374,7 +374,44 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
         fd.write("%s,%s,%f,%f,%d,%d,%d,%f,%f,%f,%f,%f, %d,%s,%s\n" % (current_date_time, model_name_file, best_guess_acc, best_guess_loss, best_guess, EPOCHS, batch_size, model_best_acc, model_best_loss, model_best_val_acc, model_best_val_loss, model_best_combined_ave_loss,
                                                                   last_exec_duration, platform.node(), model_description))
 
+def compile_model (model: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy'):
+    """
+    Does the same as code in compile_and_fit, but having the ability to call this separately *may* be useful, e.g. for TPU usuage
+    :param model:
+    :param loss:
+    :param optimizer:
+    :param metrics:
+    :return:
+    """
 
+    global use_lrf
+    global lr_max
+    global lr_min
+    global clr_mode
+
+    # TO DO: CHECK IF debug_with_dates is true, and if so, removed DATE from trainX and testX
+    if debug_with_date:
+        print('UNHANDLED - DATE COLUMN IN TRAIN DATA - NEED TO REMOVE BEFORE COMPILE AND FIT')
+        exit(-1);
+
+    if optimizer == 'SGD+CLR':
+        optimizer = 'SGD'
+        if clr_mode == 'None':
+            clr_mode = 'triangular'
+        if use_lrf == False:
+            use_lrf = True
+
+    if optimizer == 'SGD+NM':
+        optimizer = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+
+    # if optimizer=='AdamDelta'
+    #     optimizer = optimizers.Adadelta()
+
+    print("[INFO] About to start with optimizer " + str(optimizer))
+    print("[INFO] Model Description: " + model_description)
+
+    # This allows us to use this function iteratively, but only compile the first time
+    model.compile(loss=loss, optimizer=optimizer, metrics=[metrics])
 
 def compile_and_fit(model: object, trainX: object, trainY: object, testX: object, testY: object, loss: object, optimizer: object = default_optimizer, metrics: object = 'accuracy', compile = True) -> object:
     # initialize our initial learning rate and # of epochs to train for
