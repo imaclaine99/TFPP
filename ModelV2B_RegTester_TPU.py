@@ -2,7 +2,7 @@ import ModelV2Config as ModelConfig
 import MyLSTMModelV2b
 import MyFunctions as myf
 from keras.regularizers import L1L2
-
+import random
 # TPU CODE
 
 #%tensorflow_version 2.x
@@ -120,9 +120,11 @@ if dropout_test:
     ModelConfig.dense_dropout = 0
 
 if NoiseTest:
+    noise_list = (0.00000333, .0001, 0, 0.1, 0.06666, 0.0333, 0.01, 0.00333, 0.001,0.000333, 0.0000333,  0.00001,  0.175)            # 1.0, 0.75, 0.5, 0.4, 0.333,  0.25,
+    # Randomise the list - why?  Get better spread when running across machines, restarting, etc...
+    rnd_noise_list = random.sample(noise_list, len(noise_list))
     for i in range (0,5):
-        for noise in (0.00333, 0.001,0.000333, .0001, .0000333, .00001, 0.0000333, 0.00001, 0.00000333, 0, 1.0, 0.75, 0.5, 0.4,0.333, 0.25, 0.175, 0.1, 0.06666, 0.0333, 0.01):
-            ModelConfig.input_noise = noise
+        for noise in rnd_noise_list:            # 1.0, 0.75, 0.5, 0.4, 0.333,  0.25,            ModelConfig.input_noise = noise
             ModelConfig.is_input_noise = True
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
 
@@ -130,7 +132,7 @@ if NoiseTest:
             model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 5  # Allow more tolerance to continue
             model.myf.early_stopping_patience = 50  # Allow more tolerance to continue
 
-            model.myf.model_description = str(model_id) + ' BuyV3NoiseTestExec_'+str(noise) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + ' BuyV3NoiseTestExec_TPU_'+str(noise) + 'Iteration' + str(i)
             model.model.summary()
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt

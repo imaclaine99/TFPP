@@ -58,7 +58,8 @@ rows = cursor.fetchall()
 
 for symbol in rows:
     myf.download_to_db(symbol['symbol'])        # Step 1
-    myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+    atr20 = myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+    print ('Last ATR Value is ' + str(atr20))
 
 qry = ("select * from prediction_pairs ")
 cursor.execute(qry);

@@ -29,7 +29,7 @@ import time
 import datetime
 import yfinance
 #from alpha_vantage.timeseries import TimeSeries
-#from sqlalchemy import create_engine
+from sqlalchemy import create_engine
 
 
 # Set some default values, which can be overridden if wanted
@@ -958,8 +958,10 @@ def parse_file (infilename, purpose='Train', prefix=''):
     #return olhc_data, output_data
     import numpy
 
+    # Capture last ATR20 value before dropping column
+    atr20 = ohlc_np[-1, 8]
 
-    # Need to drop coulumn 6 - the ATR.
+    # Need to drop coulumn 6 and 8 - the TR and ATR_Beta.
 #    ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.
     ohlc_np = ohlc_np[:,(0,1,2,3,4,5,7,9,10,11,12, 13)]            # This effectivly drops column 6, the ATR.  This feels clumsy, but works.  Keeping 9 - P2L Ratio
 
@@ -983,8 +985,10 @@ def parse_file (infilename, purpose='Train', prefix=''):
     # To do this, I need to calculate:
         # Sum of all errors if 0, 1, 2, 3, 4, 5
 
+    # Little hack - return ATR20 of the last value, allowing it to be used in predict.  Messy, but effective!
+
     if purpose != 'Train':
-        return
+        return atr20
 
     buy_best_ave_loss = 999
     buy_best_accuracy = 0
@@ -1531,7 +1535,7 @@ def download_to_db (symbol, period='2y'):
 
 
     # Upload to temp table
-    hist.to_sql("temp_price_table", con=sqlEngine, if_exists='replace')
+    hist.to_sql("temp_price_table", con=sqlEngine, if_exists='append')
 
     # execute SQL to upate main table from temp table
     cnx = get_db_connection()
@@ -1549,10 +1553,10 @@ def download_to_db (symbol, period='2y'):
             "(select Date from pricedatadaily "
             "where symbol = '" + symbol + "' " 
             "and date = temp_price_table.date "
-            " and truncate(pricedatadaily.open, 0) =  truncate(temp_price_table.open, 0) "
-            " and truncate(close, 0) =  truncate(temp_price_table.close, 0) "
-            " and truncate(high, 0) =  truncate(temp_price_table.high, 0) "
-            " and truncate(low, 0) =  truncate(temp_price_table.low, 0) "
+            " and round(pricedatadaily.open, 0) =  round(temp_price_table.open, 0) "
+            " and round(close, 0) =  round(temp_price_table.close, 0) "
+            " and round(high, 0) =  round(temp_price_table.high, 0) "
+            " and round(low, 0) =  round(temp_price_table.low, 0) "
             #"  -- and volume =  temp_price_table.volume
             " ); ")
 
@@ -1561,8 +1565,10 @@ def download_to_db (symbol, period='2y'):
     cnx.commit()
     cnx.close()
 
-    if len(rows) > 0:
-        print('[ERROR] rowcount of ' + str(rowcount) + ' when checking for value differences - NEED TO INVESTIGATE')
+    if len(rows) > 0 and rows is not None:
+        print('[ERROR] rowcount of ' + str(rows) + ' when checking for value differences - NEED TO INVESTIGATE')
+        print('[ERROR] E.g.:')
+        print(rows[0])
         exit(-1)
 
 def parse_from_db (symbol, records=500):
@@ -1571,7 +1577,7 @@ def parse_from_db (symbol, records=500):
 
     :param symbol:
     :param records:
-    :return:
+    :return: atr20 of the last record.
     """
 
     # Step 1 - Run SQL to extract and store in a PD
@@ -1591,8 +1597,9 @@ def parse_from_db (symbol, records=500):
     global debug_with_date
     old_val = debug_with_date
     debug_with_date = True
-    parse_file(records,  purpose='Predict', prefix=symbol+'_')
+    atr20 = parse_file(records,  purpose='Predict', prefix=symbol+'_')
     debug_with_date = old_val       # Review this in future, but this forces to keep the Date field in X_Train, which has its uses...  Just need to remove before processing elsewhere
+    return atr20
 
 def download_and_parse (symbol, samples = 500):
     """
