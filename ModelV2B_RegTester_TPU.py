@@ -63,7 +63,7 @@ if LSTM_L1L2Test:
             print('[INFO]' + model.myf.model_description)
             model.model.summary()
             model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, "BuyWeightingRule", model.model,
-                                                      model.myf.model_description, version=2)
+                                                      model.myf.model_description, version=2, pre_compiled=True)
             #if model.myf.model_best_loss < 1.5:
             #    myf.save_model(model.model, model.myf.model_description + '.h5')
             model.myf.db_update_row(modelDict)

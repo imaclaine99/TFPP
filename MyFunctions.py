@@ -598,7 +598,7 @@ def parse_process_plot(infile, output_col, model, output_prefix, num_samples=250
     # Reset Keras Session, to avoid overheads on multiple iterations
         K.clear_session()
 
-def parse_process_plot_multi_source(infile_array, output_col, model, output_prefix, num_samples=250, version=1):
+def parse_process_plot_multi_source(infile_array, output_col, model, output_prefix, num_samples=250, version=1, pre_compiled=False):
     """
     # Same as parse_process_plot, BUT, takes multiple data sources and runs them one EPOCH at a time per file
     # No idea if this will work well or not, but seems worth trying!
@@ -658,7 +658,8 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
             for file in range (0, len(xtrain)):
                 print ('[INFO] Iteration ' + str(epoch) + ' on file number ' + str(file))
                 if iteration == 0:
-                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file], loss=model_loss_func, optimizer=default_optimizer)
+                    compile = False if pre_compiled else True
+                    H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file], loss=model_loss_func, optimizer=default_optimizer, compile = compile)
                 else:
                     H1 = compile_and_fit(model, xtrain[file], ytrain[file], xtest[file], ytest[file],
                                          loss=model_loss_func, optimizer=default_optimizer, compile=False)
@@ -688,7 +689,7 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
 
         import time
         start = time.time()
-        H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss=model_loss_func, optimizer=default_optimizer)
+        H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss=model_loss_func, optimizer=default_optimizer, compile = False if pre_compiled else True )
         #    H_rnd = compile_and_fit(model_rnd, xtrain, ytrain_rnd, xtest, ytest_rnd, loss='mean_squared_error')
         end = time.time()
 
