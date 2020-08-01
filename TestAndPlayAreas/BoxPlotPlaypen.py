@@ -15,7 +15,7 @@ dbConnection    = sqlEngine.connect()
 query = ("select  *, mid(description, instr(Description, 'NoiseTestExec_')+14, instr(description, 'Iteration') - 34 + 8) + 0E0 InputNoise FROM tfpp.executionlog "
 "where filename like 'ModelV2B%' "
 "and instr(Description, 'NoiseTestExec') > 0 "
-"and rule = 'BuyV3' "
+"and rule like 'BuyV3%' "
 "and unique_id = 26911 ")
 
 frame           = pd.read_sql(query, dbConnection);
@@ -29,7 +29,7 @@ frame           = pd.read_sql(query, dbConnection);
 #print (frame)
 
 #results.boxplot
-frame.boxplot('model_best_val_loss', by='InputNoise')
+frame.boxplot('model_best_val_loss', by=['InputNoise','Rule'])
 
 matplotlib.pyplot.show()
 del dbConnection

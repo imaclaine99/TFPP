@@ -58,8 +58,13 @@ rows = cursor.fetchall()
 
 for symbol in rows:
     myf.download_to_db(symbol['symbol'])        # Step 1
-    atr20 = myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+    last_date, atr20 = myf.parse_from_db(symbol['symbol'], 500)    # Step 2
     print ('Last ATR Value is ' + str(atr20))
+    # Need function to store ATR20
+    qry = ("insert ignore into predictions values (%s, %s, %s, %s, %s)")
+    cursor.execute(qry, (symbol['symbol'], last_date, 'ATR20_Actual', atr20, 1));
+    # How to get the date???
+    cnx.commit()
 
 qry = ("select * from prediction_pairs ")
 cursor.execute(qry);

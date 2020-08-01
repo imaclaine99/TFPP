@@ -17,7 +17,6 @@ MyFunctions.db_pwd = ModelConfig.db_pwd
 
 
 # Should move this to MyFunctions later
-from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
 physical_devices = tf.config.list_physical_devices('GPU')
 if len(physical_devices) > 0:

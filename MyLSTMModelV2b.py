@@ -290,6 +290,7 @@ if __name__ == "__main__":
             print(modelDict)
             modelDict['ErrorDetails'] = sys.exc_info()[0]
 #            MyFunctions.finish_update_row(ModelConfig.datafile, modelDict, False)
+
             MyFunctions.db_update_row(modelDict, False)
 
 

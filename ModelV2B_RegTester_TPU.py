@@ -48,7 +48,8 @@ if LSTM_L1L2Test:
 
             ModelConfig.kernel_regulariser = L1L2(l1 = l1l2, l2 = l1l2)
 
-            with tpu_strategy.Scope():
+            with tpu_strategy.scope():
+                print ('[INFO] Inside tpu_strategy Scope')
                 model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
                 model.myf.model_description = str(model_id) + ' BuyV3LSTM_KernelReguleriserTest_Exec L1L2_' + str(
                     l1l2) + 'Iteration' + str(i)

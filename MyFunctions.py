@@ -809,7 +809,7 @@ def parse_file (infilename, purpose='Train', prefix=''):
         #       near_future_mix = min(ohlc_data['High'][i+1:i+20]-ohlc_data['Close'][i])/ohlc_data['Close'][i]
         #numpy is row, col
 
-        if (i < len(ohlc_np)-20-2):
+        if (i < len(ohlc_np)-20+1):    # remove the -2
 
             near_future_max = (max(ohlc_np[i+1:i+21, 2])-ohlc_np[i,4])/ohlc_np[i,4]
             near_future_min = (min(ohlc_np[i+1:i+21, 3])-ohlc_np[i,4])/ohlc_np[i,4]
@@ -888,7 +888,7 @@ def parse_file (infilename, purpose='Train', prefix=''):
         #### TODO :   CAN PROFIT
 
         #### Sell Rule ###
-        if (i < len(ohlc_np) - 20 - 2):
+        if (i < len(ohlc_np) - 20 + 1):   # remove the -2
             sell_weighting_value, p2l_ratio = sell_weighting_rule(ohlc_np, i)
             ohlc_np[i,7] = sell_weighting_value
             # Need to add new column for P2L_Ratio
@@ -989,7 +989,7 @@ def parse_file (infilename, purpose='Train', prefix=''):
     # Little hack - return ATR20 of the last value, allowing it to be used in predict.  Messy, but effective!
 
     if purpose != 'Train':
-        return atr20
+        return ohlc_np[-1,0], atr20     # Return last date and atr20 of last date
 
     buy_best_ave_loss = 999
     buy_best_accuracy = 0
@@ -1086,16 +1086,33 @@ def sell_weighting_rule (ohlc_np, index, rule_version = 2):
         # Want to keep the p2l_ratio - may be useful.  Options - return a tuple OR, set the p2l_ratio as a global...
         # Let's return a tuple, as this is only used in one place.
 
-        if p2l_ratio < 0.0001 :
+# Original V2 Ratios - Found these VERY hard to train for - is this even useful??
+#        if p2l_ratio < 0.0001 :
+#            return 10, p2l_ratio
+#        elif p2l_ratio < 0.001 :
+#            return 5, p2l_ratio
+#        elif p2l_ratio < 0.01 :
+#            return 2, p2l_ratio
+#        elif p2l_ratio < 0.1 :
+#            return 1, p2l_ratio
+#        else:
+#            return 0, p2l_ratio
+
+        if p2l_ratio < 0.0001:
+            return 15, p2l_ratio
+        if p2l_ratio < 0.001 :
             return 10, p2l_ratio
-        elif p2l_ratio < 0.001 :
-            return 5, p2l_ratio
         elif p2l_ratio < 0.01 :
-            return 2, p2l_ratio
+            return 7.5, p2l_ratio
         elif p2l_ratio < 0.1 :
+            return 5, p2l_ratio
+        elif p2l_ratio < 0.25 :
+            return 2, p2l_ratio
+        elif p2l_ratio < 0.5 :
             return 1, p2l_ratio
         else:
             return 0, p2l_ratio
+
 
 def get_db_connection ():
     return mysql.connector.connect(user=db_username, password=db_pwd,
@@ -1683,6 +1700,26 @@ def predict_code_model (parsed_filename, model_file, predictions=1, expected_col
         results.append ([x_train[i, processing_range - 1, 0], model_file, expected_value, new_predictions[0,0]])        # In future, may want to preserve an array here - but for now, keep single value
 
     return results
+
+def store_atr20_to_db (symbol, date, atr20):
+    """
+        Stores the ATR20 for a given date and symbol.
+        For now, I'm storing this in 'PREDICTIONS' - even though it is NOT a prediction.  This, however, is convenient given it will be used with predictions
+    :param symbol:
+    :param atr20:
+    :return:
+    """
+
+def disable_GPU ():
+    try:
+        # Disable all GPUS
+        tf.config.set_visible_devices([], 'GPU')
+        visible_devices = tf.config.get_visible_devices()
+        for device in visible_devices:
+            assert device.device_type != 'GPU'
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        pass
 
 ## Some test code
 #model = Sequential()

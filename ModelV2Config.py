@@ -9,7 +9,7 @@ use_lrf = False #  True
 batch_size = 16
 dropout = 0.0           #   0.4
 dense_dropout = 0.0     # Not used on the last layer (obviously!)
-buy_or_sell = 'BuyV3'     # Buy or Sell  - Can be a variant - first three letters are used to determine if Buy or Sell column is to be used.
+buy_or_sell = 'BuyV3b'     # Buy or Sell  - Can be a variant - first three letters are used to determine if Buy or Sell column is to be used.
 is_dupe_data = False #True   # Experimental
 bias_regulariser = L1L2(l1= 0, l2=0)            # Used on LSTM layers
 kernel_regulariser = L1L2(l1 = 0, l2=0)         # Used on LSTM layers
@@ -25,16 +25,16 @@ datafile = r'.\models_to_test2.csv'
 #dense_kernel_initialiser = 'glorot_uniform'
 #dense_kernel_initialiser = 'glorot_normal'
 dense_kernel_initialiser = 'lecun_normal'
-db_host = '199.244.51.253' #'192.168.0.109'
-#db_host = '192.168.0.109'
+#db_host = '199.244.51.253' #'192.168.0.109'
+db_host = '192.168.0.109'
 db_username = 'tfpp'
-db_pwd = 'qQwWeErRtT123123!@'
-#db_pwd = 'tfpp'
+#db_pwd = 'qQwWeErRtT123123!@'
+db_pwd = 'tfpp'
 
 gpu = True
 if (gpu):
     db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
     disableGPU = False
 else:
-    db_read_sort = 'NodesAsc'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
+    db_read_sort = 'Random'       # None, Random, NodesAsc, NodesDesc  - Use Random for GPU
     disableGPU = True

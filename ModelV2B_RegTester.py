@@ -13,12 +13,14 @@ import random
 
 #import ModelV2Config as ModelConfig
 
-ModelConfig.buy_or_sell = 'BuyV3'         # Override Config, otherwise reporting is wrong!
+ModelConfig.buy_or_sell = 'BuyV3b'         # Override Config, otherwise reporting may be wrong!
 
 model_id = 26911 #27436 # 30694    #4857#   21910   # 16937    $14046??
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
+
+myf.disable_GPU()
 
 L1L2Test = False
 LSTM_L1L2Test = False
@@ -40,7 +42,7 @@ if LSTM_L1L2Test:
             model.myf.early_stopping_patience = 25  # Allow more tolerance to continue
 
             model.model.summary()
-            model.myf.model_description = str(model_id) + ' BuyV3LSTM_KernelReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + ' BuyV3bLSTM_KernelReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
@@ -67,7 +69,7 @@ if L1L2Test:
             model.myf.early_stopping_patience = 25  # Allow more tolerance to continue
 
             model.model.summary()
-            model.myf.model_description = str(model_id) + ' BuyV3ReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + ' BuyV3bReguleriserTest_Exec L1L2_'+str(l1l2) + 'Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
@@ -90,7 +92,7 @@ if dropout_test:
             model.myf.early_stopping_patience = 50  # Allow more tolerance to continue
 
             model.model.summary()
-            model.myf.model_description = str(model_id) + ' BuyV3DropoutTest_Exec_'+str(dropout) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + ' BuyV3bDropoutTest_Exec_'+str(dropout) + 'Iteration' + str(i)
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt
             model.model.summary()
@@ -115,7 +117,7 @@ if NoiseTest:
             model.myf.early_stopping_min_delta = model.myf.early_stopping_min_delta / 2  # Allow more tolerance to continue
             model.myf.early_stopping_patience = 30  # Allow more tolerance to continue
 
-            model.myf.model_description = str(model_id) + ' BuyV3NoiseTestExec_'+str(noise) + 'Iteration' + str(i)
+            model.myf.model_description = str(model_id) + ' BuyV3bNoiseTestExec_'+str(noise) + 'Iteration' + str(i)
             model.model.summary()
             print('[INFO]' + model.myf.model_description)
             model.myf.default_optimizer = ModelConfig.opt

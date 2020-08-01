@@ -1,4 +1,4 @@
-import MyLSTMModelV2
+import MyLSTMModelV2b
 import MyFunctions as myf
 import ModelV2Config
 
@@ -13,6 +13,7 @@ myf.shuffle_data = False            # This is real - no shuffling!
 filename = '^GDAXI_Now.csv'
 myf.parse_file(filename,  purpose='Predict')
 
+myf.parse_file(filename,  purpose='Train')
 
 new_method_data, new_method_results = myf.parsefile(r'.\\parsed_data_full\\' + filename, 'BuyWeightingRule', strip_last_row=False)
 x_train, y_train = myf.parse_data(new_method_data, new_method_results, ModelV2Config.num_samples)
