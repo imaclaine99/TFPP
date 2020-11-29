@@ -1742,6 +1742,25 @@ def predict_code_model (parsed_filename, model_file, predictions=1, expected_col
 
     return results
 
+
+def eval_standardised_loss(model, parsed_data_file, output_col):
+    """
+
+    :param model: Keras Model - should have trained values - will be compiled and evaluated
+    :param parsed_data_file: PARSED data file
+    :param output_col:  column name in the data file that will be used for output value (1 only - does not work for multiple values)
+    :return: standardised_loss value
+    """
+    model.compile(loss=default_model_loss_func, optimizer=default_optimizer,
+                  metrics=['accuracy'])  # This feels a bit hacky...
+    xtrain_new, xtest_new, ytrain_new, ytest_new = parse_data_to_trainXY(parsed_data_file, output_col,
+                                                                             test_size=0.001)
+
+    results = model.evaluate(xtest_new, ytest_new, batch_size=batch_size)
+    #print(results)
+
+    return results[0]  # Is this correct?  Seems like it should be
+
 def store_atr20_to_db (symbol, date, atr20):
     """
         Stores the ATR20 for a given date and symbol.
