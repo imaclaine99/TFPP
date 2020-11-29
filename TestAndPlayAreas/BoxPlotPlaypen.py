@@ -12,30 +12,25 @@ sqlEngine = create_engine('mysql+mysqlconnector://' + myf.db_username + ':' + my
 
 dbConnection    = sqlEngine.connect()
 
-query = ("select  *, mid(description, instr(Description, 'NoiseTestExec_')+14, instr(description, 'Iteration') - 34 + 8) + 0E0 InputNoise FROM tfpp.executionlog "
+query1 = ("select  *, mid(description, instr(Description, 'NoiseTestExec_')+14, instr(description, 'Iteration') - 34 + 8) + 0E0 InputNoise FROM tfpp.executionlog "
 "where filename like 'ModelV2B%' "
 "and instr(Description, 'NoiseTestExec') > 0 "
 "and rule like 'BuyV3%' "
 "and unique_id = 26911 ")
 
-frame           = pd.read_sql(query, dbConnection);
+query2 = ("select  *, mid(description, instr(Description, 'NoiseTestExec_')+14, instr(description, 'Iteration') - 34 + 8) + 0E0 InputNoise FROM tfpp.executionlog "
+"where filename like 'ModelV2B%' "
+"and instr(Description, 'NoiseTestExec') > 0 "
+"and rule like 'BuyV3b' "
+"and unique_id = 26911 ")
 
+frame1           = pd.read_sql(query1, dbConnection);
+frame2           = pd.read_sql(query2, dbConnection);
 
-#results = pd.DataFrame()
-#for InputNoise in frame.InputNoise.unique():
-#    new_results = frame.query('InputNoise == ' + str(InputNoise))
-#    results[InputNoise] = new_results.model_best_val_loss
-
-#print (frame)
-
-#results.boxplot
-frame.boxplot('model_best_val_loss', by=['InputNoise','Rule'])
-
+frame1.boxplot('model_best_val_loss', by=['InputNoise','Rule'])
 matplotlib.pyplot.show()
+
+frame2.boxplot('model_best_val_loss', by=['InputNoise'])
+matplotlib.pyplot.show()
+
 del dbConnection
-
-cursor.execute(query)
-
-rows = cursor.fetchall()
-
-print (rows)

@@ -47,6 +47,7 @@ import mysql.connector
 # Daily process - say at 9am
 # 1 - Select all UNIQUE codes from prediction_pairs
 # 2 - For each of these, download and store data
+#   - added capture of ATR20 and date - hacky but helpful
 # 3 - For each prediction_pairs, run prediction
 
 ModelV2Config.disableGPU=True           # Better to be slow and work, than risk failing, given lots of stuff could be running
@@ -61,7 +62,13 @@ rows = cursor.fetchall()
 
 for symbol in rows:
     myf.download_to_db(symbol['symbol'])        # Step 1
-    myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+    last_date, atr20 = myf.parse_from_db(symbol['symbol'], 500)    # Step 2
+    # Need function to store ATR20
+    qry = ("insert ignore into predictions values (%s, %s, %s, %s, %s)")
+    cursor.execute(qry, (symbol['symbol'], last_date, 'ATR20_Actual', atr20, 1));
+    # How to get the date???
+    cnx.commit()
+
 
 qry = ("select * from prediction_pairs ")
 cursor.execute(qry);

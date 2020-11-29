@@ -11,7 +11,7 @@ import ModelV2Config as ModelConfig
 
 ModelConfig.buy_or_sell = 'Sell'         # Override Config, otherwise reporting is wrong!
 
-model_id = 29840 #13535   #4857#   21910   # 16937    $14046??
+model_id = 27070 #29840 # 31940 # # # #  #  # # # 31940  #,  #13535   #4857#   21910   # 16937    $14046??
 
 modelDict = myf.read_from_from_db(
     unique_id=model_id)  # 52042   - Very good training loss, but bad validation loss - will be interesting to see if dupe data helps
@@ -24,8 +24,9 @@ NoiseTest = False
 ExtraDupeAndNewLossTest = False
 NewLossTest = False
 New2LossTest = False
-new_p2l_rule = True
-
+new_p2l_rule = False
+new_p2l_rule_multifile =False
+new_p2l_rule_multifile_RandomModel=True
 
 if Baseline:
     for i in range (0,3):
@@ -181,15 +182,15 @@ if new_p2l_rule == True:
     filename = '^GDAXI.csv'
     myf.atr_rule = 3
     myf.parse_file(filename, purpose='Train')
-    infile = ".\parsed_data\Rule3_B0.98^GDAXI.csv"
+    infile = "./parsed_data/Rule3_B0.98^GDAXI.csv"
     for rule in ( 'RangeVariance', 'P2LRatioPositive', 'P2LRatioNegative', 'P2LRatioNeutral','P2LRatio'):
-        ModelConfig.buy_or_sell = rule      # Used for reporting purposes
+        ModelConfig.buy_or_sell = rule + 'V3b'     # Used for reporting purposes
         xtrain, xtest, ytrain, ytest = myf.parse_data_to_trainXY(infile, rule)
-        for i in range(0, 2):
+        for i in range(0, 8):
             print ('[INFO] Rule: ' + rule + ' Iteration: ' + str(i))
             model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
-            model.myf.EPOCHS = 200
-            model.myf.early_stopping_patience = 25
+            model.myf.EPOCHS = 1200
+            model.myf.early_stopping_patience = 50
             model.myf.is_dupe_data = False
             model.model.summary()
             model.myf.model_description =  str(model_id) + ' P2L Target Test' + rule
@@ -199,6 +200,63 @@ if new_p2l_rule == True:
                 myf.save_model(model.model, rule+'_' +str(model_id) + '_Iteration' + str(i) + '.h5')
 
             model.myf.db_update_row(modelDict)      # Should move this into parse_process_plot...  Can't, because that doesn't take the modelDict...
+
+if new_p2l_rule_multifile == True:
+    print ('NEW ATR RULE TESTING')
+    #filename = '^GDAXI.csv'
+    #myf.atr_rule = 3
+    #myf.parse_file(filename, purpose='Train')
+    #infile = "./parsed_data/Rule3_B0.98^GDAXI.csv"
+    for rule in ( 'RangeVariance', 'P2LRatioPositive', 'P2LRatioNegative', 'P2LRatioNeutral','P2LRatio'):
+        ModelConfig.buy_or_sell = rule + 'V3b_multi'     # Used for reporting purposes
+        #xtrain, xtest, ytrain, ytest = myf.parse_data_to_trainXY(infile, rule)
+        for i in range(0, 8):
+            print ('[INFO] Rule: ' + rule + ' Iteration: ' + str(i))
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.EPOCHS = 1200
+            model.myf.early_stopping_patience = 50
+            model.myf.is_dupe_data = False
+            model.model.summary()
+            model.myf.model_description =  str(model_id) + ' P2L Target Test' + rule
+            model.myf.default_optimizer = ModelConfig.opt
+            #model.myf.parse_process_plot(infile, rule, model.model, model.myf.model_description+"Iteration" + str(i))
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, rule, model.model,
+                                                      model.myf.model_description+"Iteration" + str(i), version=2)
+            if model.myf.model_best_loss < 1.5:
+                myf.save_model(model.model, rule+'_V3BMulti_' +str(model_id) + '_Iteration' + str(i) + '.h5')
+
+            model.myf.db_update_row(modelDict)      # Should move this into parse_process_plot...  Can't, because that doesn't take the modelDict...
+
+
+if new_p2l_rule_multifile_RandomModel == True:
+    print ('NEW ATR RULE TESTING')
+    #filename = '^GDAXI.csv'
+    #myf.atr_rule = 3
+    #myf.parse_file(filename, purpose='Train')
+    #infile = "./parsed_data/Rule3_B0.98^GDAXI.csv"
+    for rule in ('P2LRatioPositive', 'P2LRatioNegative', 'P2LRatioNeutral','P2LRatio',  'RangeVariance'):
+        ModelConfig.buy_or_sell = rule + 'V3b_multi'     # Used for reporting purposes
+        #xtrain, xtest, ytrain, ytest = myf.parse_data_to_trainXY(infile, rule)
+        for i in range(0, 8):
+            print ('[INFO] Rule: ' + rule + ' Iteration: ' + str(i))
+            modelDict = myf.read_from_from_db('Random')
+            model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model_id = modelDict['unique_id']
+            #model = MyLSTMModelV2b.MyLSTMModelV2b(modelDict)
+            model.myf.EPOCHS = 1200
+            model.myf.early_stopping_patience = 50
+            model.myf.is_dupe_data = False
+            model.model.summary()
+            model.myf.model_description =  str(model_id) + ' P2L Target Test' + rule
+            model.myf.default_optimizer = ModelConfig.opt
+            #model.myf.parse_process_plot(infile, rule, model.model, model.myf.model_description+"Iteration" + str(i))
+            model.myf.parse_process_plot_multi_source(MyLSTMModelV2b.infile_array, rule, model.model,
+                                                      model.myf.model_description+"Iteration" + str(i), version=2)
+            if model.myf.model_best_loss < 1.5:
+                myf.save_model(model.model, rule+'_V3BMulti_' +str(model_id) + '_Iteration' + str(i) + '.h5')
+
+            model.myf.db_update_row(modelDict)      # Should move this into parse_process_plot...  Can't, because that doesn't take the modelDict...
+
 
 ### END HERE
 

@@ -307,11 +307,39 @@ def plot_and_save_history_with_baseline(history, epochs, filename, metadatafilen
  #       loss_multiplier = max_y_axis / meta_np[1][0] /2
  #   else :
 
+    # Test - let's get the 10th percentile of loss - use that for loss multiplier rather than just 'best guess', given meta data is now very hard
+    print ("[INFO]: Val Loss 5th Percentile is: " + str(np.percentile(history.history["val_loss"], 5)))
+    print ("[INFO]: Val Loss 95th Percentile is: " + str(np.percentile(history.history["val_loss"], 95)))
+    print ("[INFO]: Val Loss 99th Percentile is: " + str(np.percentile(history.history["val_loss"], 99)))
+    print ("[INFO]: Val Loss 99.5th Percentile is: " + str(np.percentile(history.history["val_loss"], 99.5)))
+
+    # Test code - let's check the 99th percentile against the 'best_guess_loss' and adjust accordingly
+    if np.percentile(history.history["val_loss"], 99) > best_guess_loss:
+        best_guess_loss = np.percentile(history.history["val_loss"], 99)
+        max_y_axis = max_y_axis * 2
+
+    # Test code - let's check the 99th percentile against the 'best_guess_loss' and adjust accordingly
+    if np.percentile(history.history["val_loss"], 99) > best_guess_loss:
+        best_guess_loss = np.percentile(history.history["val_loss"], 99)
+        max_y_axis = max_y_axis * 2
+
+    # Check if the best_guess_loss is too 'high' - if so, lower it.
+    if np.percentile(history.history["val_loss"], 99) < (best_guess_loss / 4):
+        best_guess_loss = best_guess_loss / 2
+
+    if np.percentile(history.history["val_loss"], 99) < (best_guess_loss / 4):
+        best_guess_loss = best_guess_loss / 2
+
+    if np.percentile(history.history["val_loss"], 99) < (best_guess_loss / 4):
+        best_guess_loss = best_guess_loss / 2
+
+
     loss_multiplier = max_y_axis / best_guess_loss /2
     loss_multiplier = trunc(loss_multiplier/5) * 5
 
     if loss_multiplier < 1:
         loss_multiplier = 1
+
 
     accuracy_multiplier = max_y_axis / max(max(history.history["accuracy"]), max(history.history["val_accuracy"]), max(best_guess_acc, 0)) / 2        # Normalise
     accuracy_multiplier = trunc(accuracy_multiplier/5) * 5
@@ -686,7 +714,8 @@ def parse_process_plot_multi_source(infile_array, output_col, model, output_pref
         plot_and_save_history_with_baseline(My_H, EPOCHS * len(xtrain), output_prefix, resolved_meta_filename)      # Multiple EPOCHS by the number of input files.
 
     elif version == 2:
-
+        # Version 2 means V2 xtrain and ytrain contain the concatenated data.  We are TESTING though on xtest[0] / ytest[0] ONLY - i.e. just the first data file.
+        # This allows us to compare the results with single file only, which is VERY USEFUL, given different files could have different distributions, even after normalising (this would be interesting to test...)
         import time
         start = time.time()
         H = compile_and_fit(model, V2_xtrain, V2_ytrain, xtest[0], ytest[0], loss=model_loss_func, optimizer=default_optimizer, compile = False if pre_compiled else True )
@@ -1119,7 +1148,7 @@ def get_db_connection ():
                                   host=db_host,
                                   database='tfpp')
 
-def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc
+def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Random, NodesAsc, NodesDesc, StdLossDescByXXX
     cnx = get_db_connection()
 
     cursor = cnx.cursor(dictionary=True)
@@ -1157,6 +1186,18 @@ def read_from_from_db(sort='None', unique_id=None):     # Sort can be None, Rand
                         "(select unique_id from tfpp.executionlog el "
                         "where el.Rule = '" + str (processing_rule) +"') "
                         "order by priority desc, RAND()")
+        else:
+            # Must mean its StdLossDescByXXX
+            # This means we need to get the XXX (Rule) and then we want to find the lowest Standardised Loss from that rule not already processed
+            source_rule = sort[13:]
+            query = ("SELECT * FROM testmodels "
+                        "where unique_id in "
+                        "(select * from "
+                        "(select unique_id from executionlog el1 "
+                        "where rule = '" + source_rule + "' "
+                        "and unique_id not in "
+                        "(select unique_id from executionlog el2 where rule = '" + str (processing_rule) +"') "
+                        "order by standardised_loss asc limit 1) inner_t )")
         query = query + " LIMIT 1"
         cursor.execute(query)
 
